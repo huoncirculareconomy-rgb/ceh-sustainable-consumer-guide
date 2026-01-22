@@ -6,247 +6,719 @@
 
 <!--
 PURPOSE & FUNCTION
-This file implements the CEH Sustainable Consumer Guide as a standalone,
-self-contained web application. It loads directory data and rotating slogans
-from Google Sheets using the Google Visualization API, renders the data as
-responsive cards, and provides search, location, and practice filters.
-It is designed to be hosted externally (e.g. GitHub Pages) and embedded
-into Google Sites as an iframe, avoiding Google Sites script restrictions.
+This page is the CEH Sustainable Consumer Guide as a standalone web app for embedding in Google Sites.
+It loads directory listings and rotating slogans from Google Sheets (via the Google Visualization API),
+renders listings as responsive cards, and provides search plus Location/Practice filters with reset and
+record counts. It is hosted externally (e.g., GitHub Pages) to avoid Google Sites script restrictions.
 -->
 
 <title>CEH Sustainable Consumer Guide</title>
 
 <style>
-/* ===== Base ===== */
-* { box-sizing: border-box; }
-html, body {
-  margin: 0;
-  padding: 0;
-  font-family: system-ui, Arial, sans-serif;
-  background: #ffffff;
-  color: #111;
-}
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body{
+    margin:0;
+    font-family: system-ui, Arial, "Helvetica Neue", Helvetica, sans-serif;
+    color:#111;
+    background:#fff;
+  }
 
-/* ===== Header ===== */
-.header {
-  padding: 16px;
-  text-align: center;
-  background: #f5f2ef;
-  border-bottom: 1px solid #e5e7eb;
-}
-.header h1 {
-  margin: 0;
-  font-size: 1.8rem;
-  color: #2E8B57;
-}
-.slogan {
-  margin-top: 8px;
-  font-style: italic;
-  color: #444;
-  min-height: 1.4em;
-}
+  .wrap{
+    max-width: 1200px;
+    margin: 0 auto;
+  }
 
-/* ===== Controls ===== */
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fff;
-}
-.controls input,
-.controls select {
-  padding: 8px;
-  font-size: 14px;
-}
+  .header{
+    background:#f5f2ef;
+    border-bottom:1px solid #e5e7eb;
+    padding: 18px 14px 12px;
+    text-align:center;
+  }
+  .title{
+    margin:0;
+    color:#2E8B57;
+    font-weight:600;
+    font-size: clamp(1.4rem, 2vw + 1rem, 2.1rem);
+    line-height:1.2;
+  }
+  .slogan{
+    margin-top: 8px;
+    color:#444;
+    font-style: italic;
+    min-height: 1.4em;
+  }
+  #sloganText{
+    display:inline-block;
+    opacity:1;
+    transition: opacity 300ms ease;
+    will-change: opacity;
+  }
+  .slogan-status{
+    font-size:12px;
+    color:#666;
+    margin-top:4px;
+  }
 
-/* ===== Cards ===== */
-.cards {
-  padding: 16px;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-@media (min-width: 700px) {
-  .cards { grid-template-columns: repeat(2, 1fr); }
-}
-@media (min-width: 1100px) {
-  .cards { grid-template-columns: repeat(3, 1fr); }
-}
+  .controls{
+    background:#fff;
+    border-bottom:1px solid #e5e7eb;
+    padding: 10px 14px;
+  }
 
-.card {
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  padding: 12px;
-}
-.card h3 {
-  margin: 0 0 6px;
-}
-.card .category {
-  display: inline-block;
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
-  margin-bottom: 6px;
-}
-.card .product {
-  margin: 6px 0;
-}
-.card .details {
-  font-size: 14px;
-  color: #374151;
-}
+  .controls-row{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+  }
 
-/* ===== Footer ===== */
-.footer {
-  text-align: center;
-  font-size: 13px;
-  color: #555;
-  margin: 24px 0;
-  font-style: italic;
-}
+  .left-controls{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    flex: 1 1 560px;
+    min-width: 280px;
+  }
+
+  .right-controls{
+    display:flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 0 0 auto;
+    min-width: 220px;
+  }
+
+  .label{
+    font-weight:600;
+    white-space: nowrap;
+  }
+
+  input[type="text"]{
+    padding: 10px;
+    border:1px solid #d1d5db;
+    border-radius:10px;
+    font-size:14px;
+    min-width: 240px;
+    flex: 1 1 300px;
+  }
+
+  .select{
+    min-width: 220px;
+    max-width: 320px;
+    flex: 0 1 260px;
+    padding: 10px;
+    border:1px solid #d1d5db;
+    border-radius:10px;
+    font-size:14px;
+    background:#fff;
+  }
+
+  .btn{
+    padding: 9px 12px;
+    border:1px solid #d1d5db;
+    border-radius:10px;
+    background:#fff;
+    cursor:pointer;
+    font-size:14px;
+    white-space: nowrap;
+  }
+  .btn:focus{ outline:2px solid #3b82f6; outline-offset:2px; }
+
+  .stats{
+    font-size: 12px;
+    color:#6b7280;
+    white-space: nowrap;
+  }
+
+  .main{
+    padding: 14px;
+  }
+
+  .cards{
+    display:grid;
+    gap: 10px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 760px){
+    .cards{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1024px){
+    .cards{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
+  .card{
+    border:1px solid #d1d5db;
+    border-radius:12px;
+    padding: 12px;
+    background:#fff;
+    min-width: 0; /* critical for grid overflow */
+  }
+  .card *{
+    overflow-wrap:anywhere;
+    word-break: break-word;
+  }
+  .card-title{
+    font-weight:700;
+    font-size:16px;
+    margin:0 0 6px 0;
+  }
+  .card-sub{
+    margin:0 0 8px 0;
+    color:#374151;
+    line-height:1.35;
+  }
+  .badge{
+    display:inline-block;
+    font-size:12px;
+    padding:2px 8px;
+    border-radius:999px;
+    background:#eef2ff;
+    color:#3730a3;
+    border:1px solid #c7d2fe;
+    margin: 0 0 8px 0;
+  }
+  .details{
+    font-size: 14px;
+    line-height:1.35;
+  }
+  .details div{ margin: 4px 0; }
+  .muted{ color:#6b7280; font-style: italic; }
+
+  .footer{
+    text-align:center;
+    font-size:13px;
+    color:#555;
+    padding: 14px 0 28px;
+    font-style: italic;
+  }
+
+  .error{
+    border:1px solid #ef4444;
+    background:#fef2f2;
+    color:#991b1b;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin: 12px 14px 0;
+    font-size: 14px;
+  }
 </style>
 </head>
 
 <body>
+  <div class="header">
+    <div class="wrap">
+      <h1 class="title">CEH Sustainable Consumer Guide</h1>
+      <div class="slogan">
+        <span id="sloganText">Loading…</span>
+        <div id="sloganStatus" class="slogan-status"></div>
+      </div>
+    </div>
+  </div>
 
-<div class="header">
-  <h1>CEH Sustainable Consumer Guide</h1>
-  <div id="slogan" class="slogan">Loading…</div>
-</div>
+  <div class="controls">
+    <div class="wrap">
+      <div class="controls-row">
+        <div class="left-controls">
+          <span class="label">Filters</span>
+          <input id="search" type="text" placeholder="Search name, product/service or category…" aria-label="Search" />
 
-<div class="controls">
-  <input id="search" type="text" placeholder="Search…" />
-</div>
+          <select id="locationSelect" class="select" multiple aria-label="Locations (multi-select)">
+            <option>Loading locations…</option>
+          </select>
 
-<div id="cards" class="cards">
-  <div>Loading directory…</div>
-</div>
+          <select id="practiceSelect" class="select" multiple aria-label="Practices (multi-select)">
+            <option>Loading practices…</option>
+          </select>
+        </div>
 
-<div id="footer" class="footer"></div>
+        <div class="right-controls">
+          <button id="resetBtn" class="btn" type="button">Reset filters</button>
+          <span id="stats" class="stats">Loading…</span>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#6b7280;">
+        Tip: Hold <b>Ctrl</b> (Windows) or <b>Cmd</b> (Mac) to select multiple Locations/Practices.
+      </div>
+    </div>
+  </div>
+
+  <div id="errorBox" class="error" style="display:none;"></div>
+
+  <div class="main">
+    <div class="wrap">
+      <div id="cards" class="cards" aria-label="Directory cards">
+        <div class="muted">Loading directory…</div>
+      </div>
+      <div id="lastUpdated" class="footer"></div>
+    </div>
+  </div>
 
 <script>
-/* ===== Configuration ===== */
-const DIRECTORY_SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
+/* =========================
+   CONFIG
+   ========================= */
+const DIRECTORY_SHEET_ID   = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
+// If your directory is in a different tab name, change this ONE value:
 const DIRECTORY_SHEET_NAME = "Directory";
 
-const SLOGAN_SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
-const SLOGAN_SHEET_NAME = "Slogans";
+const SLOGAN_SHEET_ID      = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
+const SLOGAN_SHEET_NAME    = "Slogans";
 
-/* ===== Utilities ===== */
-function esc(s) {
-  return (s || "").replace(/[&<>"']/g, c =>
+// Fade + interval for slogans
+const SLOGAN_FADE_MS = 300;
+const SLOGAN_DEFAULT_INTERVAL_MS = 15000;
+
+/* =========================
+   HELPERS
+   ========================= */
+function esc(s){
+  return (s ?? "").toString().replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
   );
 }
 
-/* ===== State ===== */
-let allRows = [];
-let filteredRows = [];
+function showError(msg){
+  const box = document.getElementById("errorBox");
+  box.style.display = "block";
+  box.innerHTML = esc(msg);
+}
 
-/* ===== Render ===== */
-function renderCards(rows) {
+function clearError(){
+  const box = document.getElementById("errorBox");
+  box.style.display = "none";
+  box.textContent = "";
+}
+
+function normKey(s){
+  return (s || "").toString().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeURL(u){
+  if(!u) return "";
+  const t = u.trim();
+  if(!t) return "";
+  return /^https?:\/\//i.test(t) ? t : "https://" + t;
+}
+
+function parseMultiValue(str){
+  // Split practices/locations on commas/semicolons/slashes/pipes
+  if(!str) return [];
+  return str
+    .split(/\s*[;,\/|]\s*/g)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function uniqueSorted(list){
+  return [...new Set(list.filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+}
+
+function parseAULikeDate(s){
+  if(!s) return null;
+  const t = s.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(t)) {
+    const d = new Date(t);
+    return isNaN(d) ? null : d;
+  }
+  if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}$/.test(t)) {
+    let [dd,mm,yy] = t.split(/[\/-]/).map(x=>x.trim());
+    if (yy.length === 2) yy = (Number(yy) >= 70 ? "19" : "20") + yy;
+    const d = new Date(Number(yy), Number(mm)-1, Number(dd));
+    return isNaN(d) ? null : d;
+  }
+  const d = new Date(t);
+  return isNaN(d) ? null : d;
+}
+
+/* =========================
+   STATE
+   ========================= */
+const state = {
+  headers: [],
+  rows: [],
+  colmap: {},   // canonical -> actual header
+  filtered: []
+};
+
+const SYNONYMS = {
+  Name:      ["name","businessname","company","organisation","organization"],
+  Location:  ["location","suburb","area","region","town","city","locality"],
+  Product:   ["productservice","product","products","service","services","offering","offerings","whatwedo"],
+  Practices: ["practices","tags","keywords","methods","practice"],
+  Website:   ["website","url","site","link","links","web","webaddress","homepage"],
+  Phone:     ["phone","mobile","telephone","tel","contactnumber"],
+  Email:     ["email","e-mail","mail","contactemail"],
+  Address:   ["address","street","physicaladdress","addr"],
+  Contact:   ["contact","contactperson","contactname","owner","manager","primarycontact"],
+  Notes:     ["notes","remarks","comment","comments","extra","info","description","about"],
+  Category:  ["category","type","industry","sector","group","classification"],
+  Date:      ["date","updated","lastupdated","lastupdate","modified","lastmodified","timestamp"],
+  Status:    ["status","state","activity","active","statusflag"]
+};
+
+function resolveColumnMap(headers){
+  const actual = {};
+  headers.forEach(h => actual[normKey(h)] = h);
+  const map = {};
+  for (const canon in SYNONYMS){
+    map[canon] = null;
+    for (const alias of SYNONYMS[canon]){
+      if (actual[alias]) { map[canon] = actual[alias]; break; }
+    }
+  }
+  return map;
+}
+
+function getVal(row, canon){
+  const h = state.colmap[canon];
+  return h ? (row[h] ?? "") : "";
+}
+
+/* =========================
+   RENDER
+   ========================= */
+function updateStats(){
+  const stats = document.getElementById("stats");
+  stats.textContent = `Showing ${state.filtered.length} of ${state.rows.length}`;
+}
+
+function renderCards(){
   const wrap = document.getElementById("cards");
   wrap.innerHTML = "";
-  if (!rows.length) {
-    wrap.textContent = "No results found.";
+
+  if (!state.filtered.length){
+    const div = document.createElement("div");
+    div.className = "muted";
+    div.textContent = "No listings found.";
+    wrap.appendChild(div);
+    updateStats();
     return;
   }
-  rows.forEach(r => {
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-      <h3>${esc(r.Name)}</h3>
-      ${r.Category ? `<div class="category">${esc(r.Category)}</div>` : ""}
-      <div class="product">${esc(r.Product)}</div>
+
+  state.filtered.forEach(item => {
+    const name = getVal(item, "Name");
+    const product = getVal(item, "Product");
+    const category = getVal(item, "Category");
+    const websiteRaw = getVal(item, "Website");
+    const email = getVal(item, "Email");
+    const phone = getVal(item, "Phone");
+    const address = getVal(item, "Address");
+    const location = getVal(item, "Location");
+    const contact = getVal(item, "Contact");
+    const notes = getVal(item, "Notes");
+
+    const websiteLinks = (websiteRaw || "")
+      .split(/[\s,;]+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(normalizeURL)
+      .filter(Boolean);
+
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const linksHtml = websiteLinks.map(u =>
+      `<div>🔗 <a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a></div>`
+    ).join("");
+
+    card.innerHTML = `
+      <div class="card-title">${esc(name)}</div>
+      ${category ? `<div class="badge">${esc(category)}</div>` : ""}
+      ${product ? `<div class="card-sub">${esc(product)}</div>` : `<div class="card-sub muted">—</div>`}
       <div class="details">
-        ${r.Website ? `<div><a href="${r.Website}" target="_blank">Website</a></div>` : ""}
-        ${r.Phone ? `<div>${esc(r.Phone)}</div>` : ""}
-        ${r.Email ? `<div>${esc(r.Email)}</div>` : ""}
-        ${r.Location ? `<div>${esc(r.Location)}</div>` : ""}
+        ${linksHtml}
+        ${email ? `<div>✉️ <a href="mailto:${esc(email)}">${esc(email)}</a></div>` : ""}
+        ${phone ? `<div>📞 ${esc(phone)}</div>` : ""}
+        ${address ? `<div>📍 ${esc(address)}</div>` : ""}
+        ${location ? `<div>📌 ${esc(location)}</div>` : ""}
+        ${contact ? `<div>👤 ${esc(contact)}</div>` : ""}
+        ${notes ? `<div class="muted">${esc(notes)}</div>` : ""}
       </div>
     `;
-    wrap.appendChild(div);
+    wrap.appendChild(card);
+  });
+
+  updateStats();
+}
+
+function showLastUpdated(){
+  const el = document.getElementById("lastUpdated");
+  const dates = state.rows
+    .map(r => parseAULikeDate(getVal(r, "Date")))
+    .filter(Boolean)
+    .sort((a,b)=>b-a);
+
+  if (!dates.length){
+    el.textContent = "Last updated: not available";
+    return;
+  }
+
+  const d = dates[0];
+  el.textContent = "Last updated: " + d.toLocaleDateString("en-AU", {
+    year:"numeric", month:"long", day:"numeric"
   });
 }
 
-/* ===== Search ===== */
-document.getElementById("search").addEventListener("input", e => {
-  const q = e.target.value.toLowerCase();
-  filteredRows = allRows.filter(r =>
-    Object.values(r).some(v => (v || "").toLowerCase().includes(q))
-  );
-  renderCards(filteredRows);
-});
+/* =========================
+   FILTERS
+   ========================= */
+function getSelectedValues(selectEl){
+  return Array.from(selectEl.selectedOptions).map(o => o.value);
+}
 
-/* ===== Google Visualization Callback ===== */
-function handleDirectoryResponse(resp) {
-  if (resp.isError()) {
-    document.getElementById("cards").textContent =
-      "Data error: " + resp.getMessage();
+function applyFilters(){
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const locSel = getSelectedValues(document.getElementById("locationSelect")).map(s => s.toLowerCase());
+  const pracSel = getSelectedValues(document.getElementById("practiceSelect")).map(s => s.toLowerCase());
+
+  const filtered = state.rows.filter(r => {
+    const name = (getVal(r,"Name") || "").toLowerCase();
+    const prod = (getVal(r,"Product") || "").toLowerCase();
+    const cat  = (getVal(r,"Category") || "").toLowerCase();
+    const prac = (getVal(r,"Practices") || "").toLowerCase();
+    const loc  = (getVal(r,"Location") || "").toLowerCase();
+
+    const textMatch = !q || name.includes(q) || prod.includes(q) || cat.includes(q) || prac.includes(q) || loc.includes(q);
+
+    const rowLocs  = parseMultiValue(getVal(r,"Location")).map(s => s.toLowerCase());
+    const rowPracs = parseMultiValue(getVal(r,"Practices")).map(s => s.toLowerCase());
+
+    const locMatch = locSel.length === 0 || rowLocs.some(v => locSel.includes(v));
+    const pracMatch = pracSel.length === 0 || rowPracs.some(v => pracSel.includes(v));
+
+    return textMatch && locMatch && pracMatch;
+  });
+
+  // Sort by Date desc (if present)
+  filtered.sort((a,b)=>{
+    const da = parseAULikeDate(getVal(a,"Date"));
+    const db = parseAULikeDate(getVal(b,"Date"));
+    const ta = da ? da.getTime() : -Infinity;
+    const tb = db ? db.getTime() : -Infinity;
+    return tb - ta;
+  });
+
+  state.filtered = filtered;
+  renderCards();
+}
+
+function buildSelect(selectEl, values, placeholder){
+  selectEl.innerHTML = "";
+  if (!values.length){
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = placeholder;
+    selectEl.appendChild(opt);
     return;
   }
-  const table = resp.getDataTable();
-  const cols = [];
-  for (let i = 0; i < table.getNumberOfColumns(); i++) {
-    cols.push(table.getColumnLabel(i));
-  }
-  allRows = [];
-  for (let r = 0; r < table.getNumberOfRows(); r++) {
-    const obj = {};
-    cols.forEach((c, i) => obj[c] = table.getValue(r, i) || "");
-    if (!obj.Status || obj.Status.toLowerCase() === "active") {
-      allRows.push(obj);
-    }
-  }
-  filteredRows = allRows;
-  renderCards(allRows);
+
+  values.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    selectEl.appendChild(opt);
+  });
 }
 
-/* ===== Slogans ===== */
-function handleSloganResponse(resp) {
-  if (resp.isError()) return;
-  const table = resp.getDataTable();
-  const slogans = [];
-  for (let r = 0; r < table.getNumberOfRows(); r++) {
-    slogans.push(table.getValue(r, 0));
-  }
-  let i = 0;
-  const el = document.getElementById("slogan");
-  el.textContent = slogans[0];
-  setInterval(() => {
-    i = (i + 1) % slogans.length;
-    el.textContent = slogans[i];
-  }, 15000);
+function resetAll(){
+  document.getElementById("search").value = "";
+  document.getElementById("locationSelect").selectedIndex = -1;
+  document.getElementById("practiceSelect").selectedIndex = -1;
+  applyFilters();
 }
 
-/* ===== Load GViz ===== */
-window.google = window.google || {};
-window.google.visualization = window.google.visualization || {};
-window.google.visualization.Query = {
-  setResponse(resp) {
-    if (resp.getDataTable().getColumnLabel(0).toLowerCase().includes("text")) {
-      handleSloganResponse(resp);
-    } else {
-      handleDirectoryResponse(resp);
-    }
-  }
-};
-
-function loadSheet(id, sheet) {
+/* =========================
+   GVIZ LOADING (IMPORTANT)
+   Each sheet has its own response handler.
+   ========================= */
+function loadSheetGviz(sheetId, sheetName, handlerName){
   const s = document.createElement("script");
+  const tq = "SELECT *";
+  const tqx = "responseHandler:" + handlerName;
   s.src =
-    "https://docs.google.com/spreadsheets/d/" + id +
-    "/gviz/tq?sheet=" + encodeURIComponent(sheet) +
-    "&tq=" + encodeURIComponent("SELECT *");
+    "https://docs.google.com/spreadsheets/d/" + sheetId + "/gviz/tq" +
+    "?sheet=" + encodeURIComponent(sheetName) +
+    "&tq=" + encodeURIComponent(tq) +
+    "&tqx=" + encodeURIComponent(tqx) +
+    "&_cb=" + Date.now(); // cache-bust
   document.body.appendChild(s);
 }
 
-loadSheet(SLOGAN_SHEET_ID, SLOGAN_SHEET_NAME);
-loadSheet(DIRECTORY_SHEET_ID, DIRECTORY_SHEET_NAME);
+/* =========================
+   DIRECTORY HANDLER
+   ========================= */
+function handleDirectoryResponse(resp){
+  try{
+    if (resp.status === "error" || (resp.isError && resp.isError())){
+      const msg = resp.getMessage ? resp.getMessage() : "Unknown directory error.";
+      showError("Directory data error: " + msg);
+      document.getElementById("cards").innerHTML = '<div class="muted">Directory failed to load.</div>';
+      return;
+    }
+
+    clearError();
+
+    const table = resp.getDataTable();
+    const headers = [];
+    for (let c=0; c<table.getNumberOfColumns(); c++){
+      headers.push(table.getColumnLabel(c));
+    }
+
+    state.headers = headers;
+    state.colmap = resolveColumnMap(headers);
+
+    // build row objects
+    const rows = [];
+    for (let r=0; r<table.getNumberOfRows(); r++){
+      const obj = {};
+      for (let c=0; c<headers.length; c++){
+        const h = headers[c];
+        const v = table.getValue(r,c);
+        obj[h] = (v == null) ? "" : String(v);
+      }
+      rows.push(obj);
+    }
+
+    // Keep only active rows if Status column exists
+    const statusH = state.colmap.Status;
+    state.rows = rows.filter(o => {
+      if (!statusH) return true;
+      return (o[statusH] || "").trim().toLowerCase() === "active";
+    });
+
+    // Build Locations / Practices lists
+    const locs = uniqueSorted(
+      state.rows.flatMap(r => parseMultiValue(getVal(r,"Location")))
+    );
+    const pracs = uniqueSorted(
+      state.rows.flatMap(r => parseMultiValue(getVal(r,"Practices")))
+    );
+
+    buildSelect(document.getElementById("locationSelect"), locs, "No locations found");
+    buildSelect(document.getElementById("practiceSelect"), pracs, "No practices found");
+
+    // initial filter render
+    applyFilters();
+    showLastUpdated();
+  } catch (e){
+    showError("Directory processing error: " + (e && e.message ? e.message : String(e)));
+    document.getElementById("cards").innerHTML = '<div class="muted">Directory failed to load.</div>';
+  }
+}
+
+/* =========================
+   SLOGAN HANDLER
+   Expected columns: Text | URL | DurationSec (but will also work with just Text)
+   ========================= */
+function handleSloganResponse(resp){
+  const sloganTextEl = document.getElementById("sloganText");
+  const statusEl = document.getElementById("sloganStatus");
+
+  try{
+    if (resp.status === "error" || (resp.isError && resp.isError())){
+      const msg = resp.getMessage ? resp.getMessage() : "Unknown slogans error.";
+      sloganTextEl.textContent = "Slogans unavailable";
+      statusEl.textContent = msg;
+      return;
+    }
+
+    const table = resp.getDataTable();
+    const items = [];
+
+    // detect header by names (optional)
+    const c0 = (table.getColumnLabel(0) || "").toLowerCase();
+    const c1 = (table.getColumnLabel(1) || "").toLowerCase();
+    const c2 = (table.getColumnLabel(2) || "").toLowerCase();
+
+    for (let r=0; r<table.getNumberOfRows(); r++){
+      const text = table.getValue(r,0);
+      const url  = table.getNumberOfColumns() > 1 ? table.getValue(r,1) : "";
+      const dur  = table.getNumberOfColumns() > 2 ? table.getValue(r,2) : "";
+
+      const t = (text == null) ? "" : String(text).trim();
+      const u = (url == null) ? "" : String(url).trim();
+      const d = Number(dur);
+
+      if (!t && !u && !dur) continue;
+
+      const durMs = Number.isFinite(d) && d > 0 ? Math.round(d * 1000) : SLOGAN_DEFAULT_INTERVAL_MS;
+
+      let html = esc(t);
+      if (u && /^https?:\/\//i.test(u)){
+        html = `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(t || u)}</a>`;
+      }
+
+      items.push({ html, durMs });
+    }
+
+    if (!items.length){
+      sloganTextEl.textContent = " ";
+      statusEl.textContent = "";
+      return;
+    }
+
+    statusEl.textContent = "";
+
+    let i = 0;
+    let timer = null;
+    let fadeTimer = null;
+
+    function clearTimers(){
+      if (timer){ clearTimeout(timer); timer = null; }
+      if (fadeTimer){ clearTimeout(fadeTimer); fadeTimer = null; }
+    }
+
+    function show(idx){
+      sloganTextEl.innerHTML = items[idx].html;
+      sloganTextEl.style.opacity = 1;
+    }
+
+    function schedule(){
+      clearTimers();
+      const row = items[i];
+      timer = setTimeout(()=>{
+        sloganTextEl.style.opacity = 0;
+        fadeTimer = setTimeout(()=>{
+          i = (i + 1) % items.length;
+          show(i);
+          schedule();
+        }, SLOGAN_FADE_MS);
+      }, row.durMs);
+    }
+
+    i = 0;
+    show(i);
+    schedule();
+
+  } catch (e){
+    sloganTextEl.textContent = "Slogans unavailable";
+    statusEl.textContent = (e && e.message) ? e.message : String(e);
+  }
+}
+
+/* =========================
+   UI WIRING
+   ========================= */
+document.getElementById("search").addEventListener("input", applyFilters);
+document.getElementById("locationSelect").addEventListener("change", applyFilters);
+document.getElementById("practiceSelect").addEventListener("change", applyFilters);
+document.getElementById("resetBtn").addEventListener("click", resetAll);
+
+/* =========================
+   INIT
+   ========================= */
+(function init(){
+  // Start with friendly placeholders
+  document.getElementById("cards").innerHTML = '<div class="muted">Loading directory…</div>';
+
+  // IMPORTANT: Each request has its own handlerName (no collisions)
+  loadSheetGviz(SLOGAN_SHEET_ID, SLOGAN_SHEET_NAME, "handleSloganResponse");
+  loadSheetGviz(DIRECTORY_SHEET_ID, DIRECTORY_SHEET_NAME, "handleDirectoryResponse");
+})();
 </script>
 
 </body>
