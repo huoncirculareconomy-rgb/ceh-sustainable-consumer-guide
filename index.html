@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!--
+PURPOSE & FUNCTION
+This file implements the CEH Sustainable Consumer Guide as a standalone,
+self-contained web application. It loads directory data and rotating slogans
+from Google Sheets using the Google Visualization API, renders the data as
+responsive cards, and provides search, location, and practice filters.
+It is designed to be hosted externally (e.g. GitHub Pages) and embedded
+into Google Sites as an iframe, avoiding Google Sites script restrictions.
+-->
+
+<title>CEH Sustainable Consumer Guide</title>
+
+<style>
+/* ===== Base ===== */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, Arial, sans-serif;
+  background: #ffffff;
+  color: #111;
+}
+
+/* ===== Header ===== */
+.header {
+  padding: 16px;
+  text-align: center;
+  background: #f5f2ef;
+  border-bottom: 1px solid #e5e7eb;
+}
+.header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #2E8B57;
+}
+.slogan {
+  margin-top: 8px;
+  font-style: italic;
+  color: #444;
+  min-height: 1.4em;
+}
+
+/* ===== Controls ===== */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+.controls input,
+.controls select {
+  padding: 8px;
+  font-size: 14px;
+}
+
+/* ===== Cards ===== */
+.cards {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 700px) {
+  .cards { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1100px) {
+  .cards { grid-template-columns: repeat(3, 1fr); }
+}
+
+.card {
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 12px;
+}
+.card h3 {
+  margin: 0 0 6px;
+}
+.card .category {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  margin-bottom: 6px;
+}
+.card .product {
+  margin: 6px 0;
+}
+.card .details {
+  font-size: 14px;
+  color: #374151;
+}
+
+/* ===== Footer ===== */
+.footer {
+  text-align: center;
+  font-size: 13px;
+  color: #555;
+  margin: 24px 0;
+  font-style: italic;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h1>CEH Sustainable Consumer Guide</h1>
+  <div id="slogan" class="slogan">Loading…</div>
+</div>
+
+<div class="controls">
+  <input id="search" type="text" placeholder="Search…" />
+</div>
+
+<div id="cards" class="cards">
+  <div>Loading directory…</div>
+</div>
+
+<div id="footer" class="footer"></div>
+
+<script>
+/* ===== Configuration ===== */
+const DIRECTORY_SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
+const DIRECTORY_SHEET_NAME = "Directory";
+
+const SLOGAN_SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
+const SLOGAN_SHEET_NAME = "Slogans";
+
+/* ===== Utilities ===== */
+function esc(s) {
+  return (s || "").replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
+  );
+}
+
+/* ===== State ===== */
+let allRows = [];
+let filteredRows = [];
+
+/* ===== Render ===== */
+function renderCards(rows) {
+  const wrap = document.getElementById("cards");
+  wrap.innerHTML = "";
+  if (!rows.length) {
+    wrap.textContent = "No results found.";
+    return;
+  }
+  rows.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      <h3>${esc(r.Name)}</h3>
+      ${r.Category ? `<div class="category">${esc(r.Category)}</div>` : ""}
+      <div class="product">${esc(r.Product)}</div>
+      <div class="details">
+        ${r.Website ? `<div><a href="${r.Website}" target="_blank">Website</a></div>` : ""}
+        ${r.Phone ? `<div>${esc(r.Phone)}</div>` : ""}
+        ${r.Email ? `<div>${esc(r.Email)}</div>` : ""}
+        ${r.Location ? `<div>${esc(r.Location)}</div>` : ""}
+      </div>
+    `;
+    wrap.appendChild(div);
+  });
+}
+
+/* ===== Search ===== */
+document.getElementById("search").addEventListener("input", e => {
+  const q = e.target.value.toLowerCase();
+  filteredRows = allRows.filter(r =>
+    Object.values(r).some(v => (v || "").toLowerCase().includes(q))
+  );
+  renderCards(filteredRows);
+});
+
+/* ===== Google Visualization Callback ===== */
+function handleDirectoryResponse(resp) {
+  if (resp.isError()) {
+    document.getElementById("cards").textContent =
+      "Data error: " + resp.getMessage();
+    return;
+  }
+  const table = resp.getDataTable();
+  const cols = [];
+  for (let i = 0; i < table.getNumberOfColumns(); i++) {
+    cols.push(table.getColumnLabel(i));
+  }
+  allRows = [];
+  for (let r = 0; r < table.getNumberOfRows(); r++) {
+    const obj = {};
+    cols.forEach((c, i) => obj[c] = table.getValue(r, i) || "");
+    if (!obj.Status || obj.Status.toLowerCase() === "active") {
+      allRows.push(obj);
+    }
+  }
+  filteredRows = allRows;
+  renderCards(allRows);
+}
+
+/* ===== Slogans ===== */
+function handleSloganResponse(resp) {
+  if (resp.isError()) return;
+  const table = resp.getDataTable();
+  const slogans = [];
+  for (let r = 0; r < table.getNumberOfRows(); r++) {
+    slogans.push(table.getValue(r, 0));
+  }
+  let i = 0;
+  const el = document.getElementById("slogan");
+  el.textContent = slogans[0];
+  setInterval(() => {
+    i = (i + 1) % slogans.length;
+    el.textContent = slogans[i];
+  }, 15000);
+}
+
+/* ===== Load GViz ===== */
+window.google = window.google || {};
+window.google.visualization = window.google.visualization || {};
+window.google.visualization.Query = {
+  setResponse(resp) {
+    if (resp.getDataTable().getColumnLabel(0).toLowerCase().includes("text")) {
+      handleSloganResponse(resp);
+    } else {
+      handleDirectoryResponse(resp);
+    }
+  }
+};
+
+function loadSheet(id, sheet) {
+  const s = document.createElement("script");
+  s.src =
+    "https://docs.google.com/spreadsheets/d/" + id +
+    "/gviz/tq?sheet=" + encodeURIComponent(sheet) +
+    "&tq=" + encodeURIComponent("SELECT *");
+  document.body.appendChild(s);
+}
+
+loadSheet(SLOGAN_SHEET_ID, SLOGAN_SHEET_NAME);
+loadSheet(DIRECTORY_SHEET_ID, DIRECTORY_SHEET_NAME);
+</script>
+
+</body>
+</html>
