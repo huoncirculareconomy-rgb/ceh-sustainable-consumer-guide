@@ -1,96 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!--
 PURPOSE & FUNCTION
-This page implements the CEH Sustainable Consumer Guide as a self-contained web
-application. It loads directory listings and rotating slogans from Google Sheets
-using the GViz endpoint via fetch(), manually parses the returned JSON, and renders
-the data as responsive cards. The design avoids GViz callbacks and legacy APIs so
-it works reliably when embedded in Google Sites or served via GitHub Pages.
+This page implements the CEH Sustainable Consumer Guide for embedding in Google Sites.
+It loads directory and slogan data from Google Sheets using the Google Visualization
+(GViz) API with responseHandler callbacks, parses the returned table JSON directly
+(without getDataTable), and renders a responsive card-based directory.
+This architecture is required to comply with Google Sites iframe security policies.
 -->
 
 <title>CEH Sustainable Consumer Guide</title>
 
 <style>
-body {
-  margin: 0;
-  font-family: system-ui, Arial, sans-serif;
-  background: #f7f5f2;
-  color: #111;
-}
-.header {
-  text-align: center;
-  padding: 20px;
-  background: #f5f2ef;
-  border-bottom: 1px solid #e5e7eb;
-}
-h1 {
-  margin: 0;
-  color: #2e8b57;
-}
-.slogan {
-  margin-top: 8px;
-  font-style: italic;
-  color: #444;
-}
-.controls {
-  padding: 12px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
-}
-.cards {
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-@media (min-width: 700px) {
-  .cards { grid-template-columns: repeat(2, 1fr); }
-}
-@media (min-width: 1100px) {
-  .cards { grid-template-columns: repeat(3, 1fr); }
-}
-.card {
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  padding: 12px;
-}
-.card h3 {
-  margin: 0 0 6px;
-}
-.badge {
-  display: inline-block;
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
-  margin-bottom: 6px;
-}
-.muted {
-  color: #6b7280;
-  font-style: italic;
-}
-.error {
-  margin: 12px;
-  padding: 10px;
-  border: 1px solid #ef4444;
-  background: #fef2f2;
-  color: #991b1b;
-  border-radius: 10px;
-}
-.footer {
-  text-align: center;
-  font-size: 13px;
-  color: #555;
-  padding: 16px;
-  font-style: italic;
-}
+body{margin:0;font-family:Arial,sans-serif;background:#f7f5f2}
+.header{text-align:center;padding:20px;background:#f5f2ef}
+h1{margin:0;color:#2e8b57}
+.slogan{margin-top:8px;font-style:italic;color:#444}
+.cards{padding:14px;display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:700px){.cards{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1100px){.cards{grid-template-columns:repeat(3,1fr)}}
+.card{background:#fff;border:1px solid #d1d5db;border-radius:12px;padding:12px}
+.badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3}
+.muted{color:#6b7280;font-style:italic}
+.error{margin:12px;padding:10px;border:1px solid #ef4444;background:#fef2f2;color:#991b1b;border-radius:10px}
 </style>
 </head>
 
@@ -101,103 +37,92 @@ h1 {
   <div id="slogan" class="slogan">Loading…</div>
 </div>
 
-<div class="controls">
-  <span id="stats" class="muted">Loading directory…</span>
+<div id="errorBox" class="error" style="display:none"></div>
+<div id="cards" class="cards">
+  <div class="muted">Loading directory…</div>
 </div>
 
-<div id="errorBox" class="error" style="display:none"></div>
-
-<div id="cards" class="cards"></div>
-
-<div class="footer" id="lastUpdated"></div>
-
 <script>
-const SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
-const DIR_SHEET = "Directory";
-const SLOGAN_SHEET = "Slogans";
+var SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
+var DIR_SHEET = "Directory";
+var SLOGAN_SHEET = "Slogans";
 
-const cards = document.getElementById("cards");
-const sloganEl = document.getElementById("slogan");
-const stats = document.getElementById("stats");
-const errorBox = document.getElementById("errorBox");
-const lastUpdated = document.getElementById("lastUpdated");
-
-function gvUrl(sheet) {
-  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
-         `?sheet=${encodeURIComponent(sheet)}` +
-         `&tq=${encodeURIComponent("select *")}` +
-         `&_=${Date.now()}`;
-}
-
-function parseGViz(text) {
-  const json = JSON.parse(text.substring(
-    text.indexOf("{"),
-    text.lastIndexOf("}") + 1
-  ));
-  const cols = json.table.cols.map(c => c.label);
-  return json.table.rows.map(r => {
-    const obj = {};
-    r.c.forEach((cell, i) => obj[cols[i]] = cell ? cell.v : "");
-    return obj;
+function esc(s){
+  return (s||"").replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   });
 }
 
-function esc(s) {
-  return (s || "").replace(/[&<>"']/g, c =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
-  );
+function parseTable(resp){
+  var cols = resp.table.cols.map(function(c){return c.label});
+  return resp.table.rows.map(function(r){
+    var o = {};
+    r.c.forEach(function(cell,i){
+      o[cols[i]] = cell ? cell.v : "";
+    });
+    return o;
+  });
 }
 
-/* Load slogans */
-fetch(gvUrl(SLOGAN_SHEET))
-  .then(r => r.text())
-  .then(t => {
-    const rows = parseGViz(t).map(r => r.Text).filter(Boolean);
-    if (!rows.length) {
-      sloganEl.textContent = "";
-      return;
-    }
-    let i = 0;
-    sloganEl.textContent = rows[0];
-    setInterval(() => {
-      i = (i + 1) % rows.length;
-      sloganEl.textContent = rows[i];
-    }, 15000);
-  })
-  .catch(() => {
-    sloganEl.textContent = "Slogans unavailable";
-  });
+/* ===== GVIZ CALLBACKS (GLOBAL) ===== */
 
-/* Load directory */
-fetch(gvUrl(DIR_SHEET))
-  .then(r => r.text())
-  .then(t => {
-    const rows = parseGViz(t)
-      .filter(r => !r.Status || r.Status.toLowerCase() === "active");
-
-    cards.innerHTML = "";
-    rows.forEach(r => {
-      const div = document.createElement("div");
-      div.className = "card";
-      div.innerHTML = `
-        <h3>${esc(r.Name)}</h3>
-        ${r.Category ? `<div class="badge">${esc(r.Category)}</div>` : ""}
-        <div>${esc(r.Product || "")}</div>
-        ${r.Website ? `<div><a href="${esc(r.Website)}" target="_blank">Website</a></div>` : ""}
-        ${r.Location ? `<div>${esc(r.Location)}</div>` : ""}
-        ${r.Notes ? `<div class="muted">${esc(r.Notes)}</div>` : ""}
-      `;
-      cards.appendChild(div);
+function handleDirectory(resp){
+  try{
+    var rows = parseTable(resp).filter(function(r){
+      return !r.Status || String(r.Status).toLowerCase() === "active";
     });
 
-    stats.textContent = `Showing ${rows.length} entries`;
-    lastUpdated.textContent = "Last updated: " +
-      new Date().toLocaleDateString("en-AU");
-  })
-  .catch(() => {
-    errorBox.style.display = "block";
-    errorBox.textContent = "Directory failed to load.";
-  });
+    var cards = document.getElementById("cards");
+    cards.innerHTML = "";
+
+    rows.forEach(function(r){
+      var d = document.createElement("div");
+      d.className = "card";
+      d.innerHTML =
+        "<h3>"+esc(r.Name)+"</h3>" +
+        (r.Category?"<div class='badge'>"+esc(r.Category)+"</div>":"") +
+        "<div>"+esc(r.Product||"")+"</div>" +
+        (r.Website?"<div><a target='_blank' href='"+esc(r.Website)+"'>Website</a></div>":"") +
+        (r.Location?"<div>"+esc(r.Location)+"</div>":"") +
+        (r.Notes?"<div class='muted'>"+esc(r.Notes)+"</div>":"");
+      cards.appendChild(d);
+    });
+  }catch(e){
+    document.getElementById("errorBox").style.display="block";
+    document.getElementById("errorBox").textContent="Directory failed to load.";
+  }
+}
+
+function handleSlogans(resp){
+  try{
+    var rows = parseTable(resp).map(function(r){return r.Text}).filter(Boolean);
+    if(!rows.length) return;
+    var i=0;
+    var el=document.getElementById("slogan");
+    el.textContent=rows[0];
+    setInterval(function(){
+      i=(i+1)%rows.length;
+      el.textContent=rows[i];
+    },15000);
+  }catch(e){
+    document.getElementById("slogan").textContent="Slogans unavailable";
+  }
+}
+
+/* ===== LOAD GVIZ ===== */
+
+function loadGViz(sheet, handler){
+  var s=document.createElement("script");
+  s.src=
+    "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq"+
+    "?sheet="+encodeURIComponent(sheet)+
+    "&tq=select%20*"+
+    "&tqx=responseHandler:"+handler;
+  document.body.appendChild(s);
+}
+
+loadGViz(SLOGAN_SHEET,"handleSlogans");
+loadGViz(DIR_SHEET,"handleDirectory");
 </script>
 
 </body>
