@@ -6,9 +6,10 @@
 
 <!--
 PURPOSE & FUNCTION
-This page implements the CEH Sustainable Consumer Guide as a standalone site.
+This page implements the CEH Sustainable Consumer Guide as a standalone web app.
 It loads directory data from a published Google Sheets CSV, renders responsive
-cards, and provides a client-side text search that filters entries in real time.
+cards, and provides client-side search plus Location and Practices filters.
+All filtering is done in-browser for reliability and performance.
 -->
 
 <title>CEH Sustainable Consumer Guide</title>
@@ -35,15 +36,18 @@ cards, and provides a client-side text search that filters entries in real time.
     padding: 12px;
     background: #ffffff;
     border-bottom: 1px solid #e5e7eb;
-    text-align: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
   }
-  .controls input {
-    width: 100%;
-    max-width: 420px;
+  .controls input,
+  .controls select {
     padding: 10px 12px;
     font-size: 15px;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
+    min-width: 220px;
   }
   .status {
     padding: 10px;
@@ -94,13 +98,21 @@ cards, and provides a client-side text search that filters entries in real time.
     placeholder="Search name, product/service or location…"
     aria-label="Search directory"
   >
+
+  <select id="locationFilter" aria-label="Filter by location">
+    <option value="">All locations</option>
+  </select>
+
+  <select id="practiceFilter" aria-label="Filter by practices">
+    <option value="">All practices</option>
+  </select>
 </div>
 
 <div id="status" class="status">Loading directory…</div>
 <div id="cards" class="cards"></div>
 
 <script>
-/* ===== CONFIGURATION ===== */
+/* ===== CONFIG ===== */
 
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=2076497318&single=true&output=csv";
@@ -119,33 +131,19 @@ function parseCSV(text) {
 
   for (let i = 0; i < text.length; i++) {
     const c = text[i], n = text[i + 1];
-
     if (c === '"') {
-      if (inQuotes && n === '"') {
-        cell += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
+      if (inQuotes && n === '"') { cell += '"'; i++; }
+      else { inQuotes = !inQuotes; }
     } else if (c === ',' && !inQuotes) {
-      row.push(cell);
-      cell = "";
+      row.push(cell); cell = "";
     } else if ((c === '\n' || c === '\r') && !inQuotes) {
-      if (cell || row.length) {
-        row.push(cell);
-        rows.push(row);
-        row = [];
-        cell = "";
-      }
+      if (cell || row.length) { row.push(cell); rows.push(row); }
+      row = []; cell = "";
     } else {
       cell += c;
     }
   }
-
-  if (cell || row.length) {
-    row.push(cell);
-    rows.push(row);
-  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
 
   const headers = rows.shift().map(h => h.trim());
   return rows
@@ -157,9 +155,11 @@ function parseCSV(text) {
     });
 }
 
-/* ===== LOAD & RENDER ===== */
+/* ===== STATE ===== */
 
 let allData = [];
+
+/* ===== RENDER ===== */
 
 function render(data) {
   const cards = document.getElementById("cards");
@@ -186,11 +186,73 @@ function render(data) {
   status.textContent = "Showing " + data.length + " entries";
 }
 
+/* ===== FILTERING ===== */
+
+function applyFilters() {
+  const q = document.getElementById("searchBox").value.toLowerCase();
+  const loc = document.getElementById("locationFilter").value;
+  const prac = document.getElementById("practiceFilter").value;
+
+  const filtered = allData.filter(r => {
+    const textMatch =
+      (r.Name || "").toLowerCase().includes(q) ||
+      (r["Product / Service"] || r.Product || "").toLowerCase().includes(q) ||
+      (r.Location || "").toLowerCase().includes(q);
+
+    const locMatch = !loc || (r.Location || "") === loc;
+
+    const pracMatch =
+      !prac ||
+      (r.Practices || "")
+        .toLowerCase()
+        .split(/[,;]+/)
+        .map(s => s.trim())
+        .includes(prac);
+
+    return textMatch && locMatch && pracMatch;
+  });
+
+  render(filtered);
+}
+
+/* ===== LOAD DATA ===== */
+
 fetch(CSV_URL + "&_=" + Date.now())
   .then(r => r.text())
   .then(text => {
     allData = parseCSV(text)
       .filter(r => !r.Status || r.Status.toLowerCase() === "active");
+
+    // Populate Location filter
+    const locations = [...new Set(
+      allData.map(r => r.Location).filter(Boolean)
+    )].sort();
+
+    const locSel = document.getElementById("locationFilter");
+    locations.forEach(l => {
+      const o = document.createElement("option");
+      o.value = l;
+      o.textContent = l;
+      locSel.appendChild(o);
+    });
+
+    // Populate Practices filter
+    const practices = [...new Set(
+      allData.flatMap(r =>
+        (r.Practices || "")
+          .split(/[,;]+/)
+          .map(s => s.trim().toLowerCase())
+          .filter(Boolean)
+      )
+    )].sort();
+
+    const pracSel = document.getElementById("practiceFilter");
+    practices.forEach(p => {
+      const o = document.createElement("option");
+      o.value = p;
+      o.textContent = p.charAt(0).toUpperCase() + p.slice(1);
+      pracSel.appendChild(o);
+    });
 
     render(allData);
   })
@@ -199,19 +261,11 @@ fetch(CSV_URL + "&_=" + Date.now())
       "Directory failed to load.";
   });
 
-/* ===== SEARCH ===== */
+/* ===== EVENTS ===== */
 
-document.getElementById("searchBox").addEventListener("input", e => {
-  const q = e.target.value.toLowerCase();
-
-  const filtered = allData.filter(r =>
-    (r.Name || "").toLowerCase().includes(q) ||
-    (r["Product / Service"] || r.Product || "").toLowerCase().includes(q) ||
-    (r.Location || "").toLowerCase().includes(q)
-  );
-
-  render(filtered);
-});
+document.getElementById("searchBox").addEventListener("input", applyFilters);
+document.getElementById("locationFilter").addEventListener("change", applyFilters);
+document.getElementById("practiceFilter").addEventListener("change", applyFilters);
 </script>
 
 </body>
