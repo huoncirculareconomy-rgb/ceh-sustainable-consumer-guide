@@ -7,11 +7,12 @@
 
 <!--
 PURPOSE & FUNCTION
-This page loads data from the CEH Sustainable Consumer Guide Google Sheet
-using Google's official gviz JSON endpoint, explicitly targeting the
-correct sheet tab by gid. It renders the data as a searchable and
-filterable card-based directory. Locations and Practices are normalised
-so combined entries are split into individual filter options.
+This page loads the CEH Sustainable Consumer Guide directly from a public
+Google Sheet using Google's official gviz JSON endpoint. It renders the
+data as a searchable and filterable card-based directory. Locations and
+Practices are normalised so combined entries (e.g. "Huonville / Franklin")
+appear as individual filter options. Users can reset filters, click
+practice tags to filter, and see how many results are currently shown.
 -->
 
 <style>
@@ -29,35 +30,45 @@ so combined entries are split into individual filter options.
 
   .subtitle {
     font-style: italic;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
     color: #444;
   }
 
-<div class="filters">
-  <input id="search" placeholder="Search businesses or services">
-  <select id="locationFilter">
-    <option value="">All locations</option>
-  </select>
-  <select id="practiceFilter">
-    <option value="">All practices</option>
-  </select>
-  <button id="resetFilters" type="button">Reset filters</button>
-</div>
-
-}
-
-/* Mobile: stack filters vertically */
-@media (max-width: 700px) {
   .filters {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 10px;
+    margin-bottom: 10px;
   }
-}
 
+  @media (max-width: 700px) {
+    .filters {
+      grid-template-columns: 1fr;
+    }
   }
 
   input, select {
     padding: 10px;
     font-size: 16px;
+  }
+
+  #resetFilters {
+    padding: 10px 14px;
+    font-size: 16px;
+    background: #1a73e8;
+    color: #fff;
+    border: 1px solid #1a73e8;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  #resetFilters:hover {
+    background: #155ec2;
+  }
+
+  .results {
+    margin-bottom: 16px;
+    color: #555;
   }
 
   .cards {
@@ -90,6 +101,12 @@ so combined entries are split into individual filter options.
     border-radius: 12px;
     font-size: 12px;
     margin: 2px 4px 2px 0;
+    border: none;
+    cursor: pointer;
+  }
+
+  .tag:hover {
+    background: #c7ead9;
   }
 
   a {
@@ -112,8 +129,10 @@ so combined entries are split into individual filter options.
   <select id="practiceFilter">
     <option value="">All practices</option>
   </select>
+  <button id="resetFilters" type="button">Reset filters</button>
 </div>
 
+<div id="resultsCount" class="results"></div>
 <div id="cards" class="cards"></div>
 
 <script>
@@ -131,6 +150,7 @@ const cardsEl = document.getElementById("cards");
 const searchEl = document.getElementById("search");
 const locEl = document.getElementById("locationFilter");
 const pracEl = document.getElementById("practiceFilter");
+const resultsEl = document.getElementById("resultsCount");
 
 let rows = [];
 
@@ -176,11 +196,10 @@ function renderCards() {
   const loc = norm(locEl.value);
   const prac = norm(pracEl.value);
 
-  cardsEl.innerHTML = "";
-
-  rows.filter(r => {
-    const text =
-      norm(`${r.Name} ${r["Product/Service"]} ${r.Category}`);
+  const filtered = rows.filter(r => {
+    const text = norm(
+      `${r.Name} ${r["Product/Service"]} ${r.Category}`
+    );
 
     const locMatch =
       !loc || splitTokens(r.Location).map(norm).includes(loc);
@@ -189,7 +208,14 @@ function renderCards() {
       !prac || splitTokens(r.Practices).map(norm).includes(prac);
 
     return (!q || text.includes(q)) && locMatch && pracMatch;
-  }).forEach(r => {
+  });
+
+  resultsEl.textContent =
+    `Showing ${filtered.length} of ${rows.length} results`;
+
+  cardsEl.innerHTML = "";
+
+  filtered.forEach(r => {
     const card = document.createElement("div");
     card.className = "card";
 
@@ -199,7 +225,8 @@ function renderCards() {
       ${r.Notes ? `<p>${r.Notes}</p>` : ""}
       <div>
         ${splitTokens(r.Practices).map(p =>
-          `<span class="tag">${p}</span>`).join("")}
+          `<button class="tag" data-practice="${p}" type="button">${p}</button>`
+        ).join("")}
       </div>
       ${r.Website ? `<p><a href="${r.Website}" target="_blank">Website</a></p>` : ""}
     `;
@@ -233,12 +260,26 @@ fetch(GVIZ_URL)
     renderCards();
   });
 
+/* ================= EVENTS ================= */
+
 searchEl.addEventListener("input", renderCards);
 locEl.addEventListener("change", renderCards);
 pracEl.addEventListener("change", renderCards);
+
+document.getElementById("resetFilters").addEventListener("click", () => {
+  searchEl.value = "";
+  locEl.value = "";
+  pracEl.value = "";
+  renderCards();
+});
+
+cardsEl.addEventListener("click", e => {
+  const btn = e.target.closest(".tag");
+  if (!btn) return;
+  pracEl.value = btn.dataset.practice;
+  renderCards();
+});
 </script>
 
 </body>
 </html>
-
-
