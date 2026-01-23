@@ -287,7 +287,12 @@ function render() {
     card.innerHTML = `
       <h3>${r.Name || ""}</h3>
       <div class="description">${r["Product/Service"] || ""}</div>
-      ${r.Category ? `<span class="category-tag">${r.Category}</span>` : ""}
+     <div>
+    ${(r.Category || "").split(",").map(c =>
+    `<span class="category-tag">${c.trim()}</span>`
+  ).join("")}
+</div>
+
       <div>
         ${(r.Practices || "").split(",").map(p =>
           `<span class="practice-tag" onclick="setPractice('${p.trim()}')">${p.trim()}</span>`
@@ -321,3 +326,4 @@ function setPractice(p) {
 </script>
 </body>
 </html>
+
