@@ -1,122 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
+<title>CEH Sustainable Consumer Guide</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>CEH Sustainable Consumer Guide</title>
+<!--
+PURPOSE
+-------
+Renders the CEH Sustainable Consumer Guide from a Google Sheets CSV.
+This version is based on the last known good layout and behaviour.
+Only two enhancements have been added:
+1) Notes displayed at the bottom of each card (grey, italic).
+2) Physical addresses link to Google Maps when present.
+-->
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-/* =========================================================
-   PURPOSE & FUNCTION
-   ---------------------------------------------------------
-   This script renders the Circular Economy Huon Sustainable
-   Consumer Guide from a Google Sheets CSV. It displays
-   businesses as cards with search and filters, clickable
-   category and practice pills, contact details, and links.
-   Notes are shown at the bottom of each card in a subdued
-   style, and physical addresses link to Google Maps.
-   ========================================================= */
-
 body {
   margin: 0;
   font-family: system-ui, Arial, sans-serif;
-  background: transparent;
+  background: #f6f3ee;
+  color: #24323f;
 }
 
-/* Layout */
 .container {
-  padding: 12px;
+  max-width: 1200px;
+  margin: auto;
+  padding: 16px;
 }
 
-/* Search */
-.search-wrap {
-  margin-bottom: 12px;
+h1 {
+  color: #2f8f5b;
+  margin-bottom: 4px;
 }
-.search-wrap input {
-  width: 100%;
-  max-width: 100%;
-  padding: 10px;
+
+.subtitle {
+  font-style: italic;
+  margin-bottom: 16px;
+}
+
+/* Filters */
+.filters {
+  display: grid;
+  grid-template-columns: 1fr 220px 220px auto;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.filters input,
+.filters select,
+.filters button {
+  padding: 8px 10px;
   font-size: 14px;
+}
+
+#resetBtn {
+  background: #1a73e8;
+  color: #fff;
+  border: 1px solid #1a73e8;
   border-radius: 6px;
-  border: 1px solid #ccc;
-  box-sizing: border-box;
+  cursor: pointer;
+}
+
+#resetBtn:hover {
+  background: #1558b0;
+}
+
+@media (max-width: 800px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.results-count {
+  font-size: 13px;
+  margin: 8px 0 12px;
 }
 
 /* Cards */
 .cards {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-@media (min-width: 768px) {
-  .cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (min-width: 1100px) {
-  .cards {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
 }
 
 .card {
+  background: #fbfaf8;
   border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 12px;
-  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
 }
 
-.card-title {
-  font-weight: 700;
+.card h3 {
+  margin: 0 0 6px 0;
   font-size: 16px;
-  margin-bottom: 6px;
 }
 
-.card-product {
+.description {
+  font-size: 14px;
+  line-height: 1.45;
   margin-bottom: 8px;
-  line-height: 1.35;
 }
 
 /* Pills */
-.pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.pill-category {
-  background: #1a73e8;
-  color: #fff;
-  border-radius: 999px;
-  padding: 3px 10px;
+.category-tag,
+.practice-tag {
+  display: inline-block;
+  padding: 4px 10px;
   font-size: 12px;
-  cursor: pointer;
-}
-
-.pill-practice {
-  background: #e6f4ea;
-  color: #137333;
   border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 12px;
+  margin: 3px 4px 0 0;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-/* Contact details */
+.category-tag {
+  background: #e6f0ff;
+  color: #2457c5;
+  border: 1px solid #bcd2ff;
+}
+
+.practice-tag {
+  background: #e7f5ea;
+  color: #1b7f4d;
+  border: 1px solid #bfe3cc;
+}
+
+/* Contact */
 .contact {
   font-size: 13px;
-  margin-top: 6px;
+  margin-top: 8px;
 }
+
 .contact-item {
-  margin-bottom: 4px;
+  margin-top: 3px;
 }
+
 .contact-item a {
   color: #1a73e8;
   text-decoration: none;
   font-size: 13px;
 }
+
 .contact-item a:hover {
   text-decoration: underline;
 }
@@ -136,102 +163,133 @@ body {
 <body>
 <div class="container">
 
-  <div class="search-wrap">
-    <input id="search" type="text" placeholder="Search name, product, category or practice…">
+  <h1>CEH Sustainable Consumer Guide</h1>
+  <div class="subtitle">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
+
+  <div class="filters">
+    <input id="searchInput" placeholder="Search name, product, category or practice…">
+    <select id="locationFilter"><option value="">All locations</option></select>
+    <select id="practiceFilter"><option value="">All practices</option></select>
+    <button id="resetBtn">Reset filters</button>
   </div>
 
-  <div id="cards" class="cards"></div>
+  <div class="results-count" id="resultsCount"></div>
+  <div class="cards" id="cards"></div>
 
 </div>
 
 <script>
-/* =======================
-   CONFIG
-   ======================= */
 const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=2076497318&single=true&output=csv";
+  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
 
-/* =======================
-   HELPERS
-   ======================= */
-function parseCSV(text) {
-  const lines = text.split(/\r?\n/).filter(Boolean);
-  const headers = lines.shift().split(",").map(h => h.trim());
-  return lines.map(line => {
-    const cells = line.split(",");
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = (cells[i] || "").trim());
-    return obj;
-  });
+let rows = [];
+let filtered = [];
+let activeCategory = "";
+
+const searchInput = document.getElementById("searchInput");
+const locationFilter = document.getElementById("locationFilter");
+const practiceFilter = document.getElementById("practiceFilter");
+const cardsEl = document.getElementById("cards");
+const resultsCount = document.getElementById("resultsCount");
+
+function list(val) {
+  return (val || "").split(",").map(v => v.trim()).filter(Boolean);
 }
 
-function splitList(value) {
-  if (!value) return [];
-  return value.split(",").map(v => v.trim()).filter(Boolean);
-}
-
-function extractLinks(value) {
-  if (!value) return [];
-  const matches = value.match(/(https?:\/\/[^\s,]+|www\.[^\s,]+)/gi) || [];
+function extractLinks(val) {
+  if (!val) return [];
+  const matches = val.match(/(https?:\/\/[^\s,]+|www\.[^\s,]+)/gi) || [];
   return matches.map(u => u.startsWith("http") ? u : "https://" + u);
 }
 
-function mapLink(address) {
+function mapsLink(address) {
   return "https://www.google.com/maps/search/?api=1&query=" +
          encodeURIComponent(address);
 }
 
-/* =======================
-   STATE
-   ======================= */
-let allRows = [];
-let filteredRows = [];
-let activeCategory = null;
-let activePractices = new Set();
+Papa.parse(CSV_URL, {
+  download: true,
+  header: true,
+  complete: res => {
+    rows = res.data
+      .filter(r => r.Status?.toLowerCase() === "active")
+      .sort((a, b) => new Date(b.Date) - new Date(a.Date));
 
-/* =======================
-   RENDER
-   ======================= */
+    populateFilters();
+    applyFilters();
+  }
+});
+
+function populateFilters() {
+  const locations = new Set();
+  const practices = new Set();
+
+  rows.forEach(r => {
+    list(r.Location).forEach(v => locations.add(v));
+    list(r.Practices).forEach(v => practices.add(v));
+  });
+
+  [...locations].sort().forEach(v =>
+    locationFilter.add(new Option(v, v))
+  );
+  [...practices].sort().forEach(v =>
+    practiceFilter.add(new Option(v, v))
+  );
+}
+
+function applyFilters() {
+  const q = searchInput.value.toLowerCase();
+  const loc = locationFilter.value;
+  const prac = practiceFilter.value;
+
+  filtered = rows.filter(r => {
+    const text =
+      `${r.Name} ${r["Product/Service"]} ${r.Category} ${r.Practices}`.toLowerCase();
+
+    if (q && !text.includes(q)) return false;
+    if (loc && !list(r.Location).includes(loc)) return false;
+    if (prac && !list(r.Practices).includes(prac)) return false;
+    if (activeCategory && !list(r.Category).includes(activeCategory)) return false;
+
+    return true;
+  });
+
+  render();
+}
+
 function render() {
-  const wrap = document.getElementById("cards");
-  wrap.innerHTML = "";
+  cardsEl.innerHTML = "";
+  resultsCount.textContent =
+    `Showing ${filtered.length} of ${rows.length} results`;
 
-  filteredRows.forEach(r => {
+  filtered.forEach(r => {
     const card = document.createElement("div");
     card.className = "card";
 
-    /* Category pills */
-    const categories = splitList(r.Category);
-    const catHTML = categories.map(c =>
-      `<span class="pill-category" data-cat="${c}">${c}</span>`
-    ).join("");
+    const categoryHTML = list(r.Category)
+      .map(c => `<span class="category-tag" data-cat="${c}">${c}</span>`)
+      .join("");
 
-    /* Practice pills */
-    const practices = splitList(r.Practices);
-    const pracHTML = practices.map(p =>
-      `<span class="pill-practice" data-prac="${p.toLowerCase()}">${p}</span>`
-    ).join("");
+    const practiceHTML = list(r.Practices)
+      .map(p => `<span class="practice-tag" data-practice="${p}">${p}</span>`)
+      .join("");
 
-    /* Website links */
-    const linksHTML = extractLinks(r.Website).map(url =>
-      `<div class="contact-item">
-        <a href="${url}" target="_blank">${url}</a>
-      </div>`
-    ).join("");
+    const linksHTML = extractLinks(r.Website)
+      .map(u => `<div class="contact-item"><a href="${u}" target="_blank">${u}</a></div>`)
+      .join("");
 
-    /* Address with Google Maps */
     const addressHTML = r.Address
       ? `<div class="contact-item">
-           <a href="${mapLink(r.Address)}" target="_blank">${r.Address}</a>
+           <a href="${mapsLink(r.Address)}" target="_blank">${r.Address}</a>
          </div>`
       : "";
 
     card.innerHTML = `
-      <div class="card-title">${r.Name || ""}</div>
-      <div class="card-product">${r["Product/Service"] || ""}</div>
+      <h3>${r.Name}</h3>
+      <div class="description">${r["Product/Service"] || ""}</div>
 
-      <div class="pills">${catHTML}</div>
-      <div class="pills">${pracHTML}</div>
+      <div>${categoryHTML}</div>
+      <div>${practiceHTML}</div>
 
       <div class="contact">
         ${linksHTML}
@@ -243,63 +301,38 @@ function render() {
       ${r.Notes ? `<div class="notes">${r.Notes}</div>` : ""}
     `;
 
-    wrap.appendChild(card);
+    cardsEl.appendChild(card);
   });
+
+  document.querySelectorAll(".category-tag").forEach(el =>
+    el.onclick = () => {
+      activeCategory = el.dataset.cat;
+      applyFilters();
+    }
+  );
+
+  document.querySelectorAll(".practice-tag").forEach(el =>
+    el.onclick = () => {
+      practiceFilter.value = el.dataset.practice;
+      applyFilters();
+    }
+  );
 }
 
-/* =======================
-   FILTERING
-   ======================= */
-function applyFilters() {
-  const q = document.getElementById("search").value.toLowerCase();
+searchInput.oninput = applyFilters;
+locationFilter.onchange = applyFilters;
+practiceFilter.onchange = () => {
+  activeCategory = "";
+  applyFilters();
+};
 
-  filteredRows = allRows.filter(r => {
-    if (activeCategory && !splitList(r.Category).includes(activeCategory)) {
-      return false;
-    }
-    if (activePractices.size) {
-      const rowPractices = splitList(r.Practices).map(p => p.toLowerCase());
-      if (![...activePractices].some(p => rowPractices.includes(p))) {
-        return false;
-      }
-    }
-    return (
-      (r.Name || "").toLowerCase().includes(q) ||
-      (r["Product/Service"] || "").toLowerCase().includes(q)
-    );
-  });
-
-  render();
-}
-
-/* =======================
-   EVENTS
-   ======================= */
-document.addEventListener("click", e => {
-  if (e.target.classList.contains("pill-category")) {
-    activeCategory = e.target.dataset.cat;
-    applyFilters();
-  }
-  if (e.target.classList.contains("pill-practice")) {
-    const p = e.target.dataset.prac;
-    activePractices.has(p) ? activePractices.delete(p) : activePractices.add(p);
-    applyFilters();
-  }
-});
-
-document.getElementById("search").addEventListener("input", applyFilters);
-
-/* =======================
-   INIT
-   ======================= */
-fetch(CSV_URL)
-  .then(r => r.text())
-  .then(text => {
-    allRows = parseCSV(text)
-      .filter(r => !r.Status || r.Status.toLowerCase() === "active");
-    filteredRows = allRows;
-    render();
-  });
+document.getElementById("resetBtn").onclick = () => {
+  searchInput.value = "";
+  locationFilter.value = "";
+  practiceFilter.value = "";
+  activeCategory = "";
+  applyFilters();
+};
 </script>
 </body>
 </html>
