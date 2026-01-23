@@ -10,12 +10,13 @@ PURPOSE & FUNCTION
 ------------------
 This page displays the CEH Sustainable Consumer Guide by loading data
 from a specific Google Sheets tab (as CSV). The data is rendered as
-searchable, filterable cards. Locations and practices are stored as
-comma-delimited lists in the spreadsheet and are displayed as individual
-buttons. Entries are sorted by Date (most recent first).
+searchable, filterable cards, sorted by most recent date first.
 
-This page is designed for GitHub Pages and can be safely embedded in
-Google Sites.
+Locations are used for filtering only and are not displayed on cards.
+Categories are displayed as blue pill-style buttons.
+Practices are displayed as green pill-style buttons and are clickable.
+
+Designed for GitHub Pages and safe to embed in Google Sites.
 -->
 
 <!-- Robust CSV parser -->
@@ -128,6 +129,7 @@ h1 {
 
 /* ===== Links ===== */
 .card a {
+  font-size: 13px;
   color: #1a73e8;
   text-decoration: none;
   word-break: break-word;
@@ -137,14 +139,8 @@ h1 {
   text-decoration: underline;
 }
 
-/* ===== Category ===== */
-.category-link {
-  font-size: 13px;
-  color: #1a73e8;
-}
-
-/* ===== Location tag (blue) ===== */
-.location-tag {
+/* ===== Category tag (blue) ===== */
+.category-tag {
   display: inline-block;
   padding: 4px 10px;
   font-size: 12px;
@@ -291,12 +287,7 @@ function render() {
     card.innerHTML = `
       <h3>${r.Name || ""}</h3>
       <div class="description">${r["Product/Service"] || ""}</div>
-      ${r.Category ? `<div class="category-link">${r.Category}</div>` : ""}
-      <div>
-        ${(r.Location || "").split(",").map(l =>
-          `<span class="location-tag">${l.trim()}</span>`
-        ).join("")}
-      </div>
+      ${r.Category ? `<span class="category-tag">${r.Category}</span>` : ""}
       <div>
         ${(r.Practices || "").split(",").map(p =>
           `<span class="practice-tag" onclick="setPractice('${p.trim()}')">${p.trim()}</span>`
