@@ -9,11 +9,13 @@
 PURPOSE & FUNCTION
 ------------------
 This page displays the CEH Sustainable Consumer Guide by loading data
-directly from a published Google Sheets tab (as CSV). It renders the
-data as searchable, filterable cards, sorted by most recent date first.
-The page is designed to run on GitHub Pages and be safely embedded in
-Google Sites. All logic is client-side and robust against commas and
-formatting in spreadsheet cells.
+from a specific Google Sheets tab (as CSV). The data is rendered as
+searchable, filterable cards. Locations and practices are stored as
+comma-delimited lists in the spreadsheet and are displayed as individual
+buttons. Entries are sorted by Date (most recent first).
+
+This page is designed for GitHub Pages and can be safely embedded in
+Google Sites.
 -->
 
 <!-- Robust CSV parser -->
@@ -141,7 +143,7 @@ h1 {
   color: #1a73e8;
 }
 
-/* ===== Location tag ===== */
+/* ===== Location tag (blue) ===== */
 .location-tag {
   display: inline-block;
   padding: 4px 10px;
@@ -153,7 +155,7 @@ h1 {
   margin: 2px 6px 2px 0;
 }
 
-/* ===== Practice tag ===== */
+/* ===== Practice tag (green) ===== */
 .practice-tag {
   display: inline-block;
   padding: 4px 10px;
@@ -204,7 +206,7 @@ const CSV_URL =
 let allRows = [];
 
 /* =========================
-   LOAD CSV (ROBUST)
+   LOAD CSV
    ========================= */
 Papa.parse(CSV_URL, {
   download: true,
@@ -213,7 +215,7 @@ Papa.parse(CSV_URL, {
   complete: function (results) {
     allRows = results.data
       .filter(r => r.Status && r.Status.trim().toLowerCase() === "active")
-      .sort((a, b) => parseDate(b.Date) - parseDate(a.Date)); // newest first
+      .sort((a, b) => parseDate(b.Date) - parseDate(a.Date));
 
     buildFilters();
     render();
@@ -224,17 +226,15 @@ Papa.parse(CSV_URL, {
 });
 
 /* =========================
-   DATE PARSER (AU / ISO SAFE)
+   DATE PARSER
    ========================= */
 function parseDate(value) {
   if (!value) return 0;
 
-  // ISO yyyy-mm-dd
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
     return new Date(value).getTime() || 0;
   }
 
-  // dd/mm/yyyy or dd-mm-yyyy
   if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(value)) {
     const [d, m, y] = value.split(/[\/-]/);
     return new Date(y, m - 1, d).getTime() || 0;
@@ -252,8 +252,8 @@ function buildFilters() {
   const pracSet = new Set();
 
   allRows.forEach(r => {
-    (r.Location || "").split(";").forEach(l => locSet.add(l.trim()));
-    (r.Practices || "").split(";").forEach(p => pracSet.add(p.trim()));
+    (r.Location || "").split(",").forEach(l => locSet.add(l.trim()));
+    (r.Practices || "").split(",").forEach(p => pracSet.add(p.trim()));
   });
 
   [...locSet].filter(Boolean).sort().forEach(l =>
@@ -293,12 +293,12 @@ function render() {
       <div class="description">${r["Product/Service"] || ""}</div>
       ${r.Category ? `<div class="category-link">${r.Category}</div>` : ""}
       <div>
-        ${(r.Location || "").split(";").map(l =>
+        ${(r.Location || "").split(",").map(l =>
           `<span class="location-tag">${l.trim()}</span>`
         ).join("")}
       </div>
       <div>
-        ${(r.Practices || "").split(";").map(p =>
+        ${(r.Practices || "").split(",").map(p =>
           `<span class="practice-tag" onclick="setPractice('${p.trim()}')">${p.trim()}</span>`
         ).join("")}
       </div>
