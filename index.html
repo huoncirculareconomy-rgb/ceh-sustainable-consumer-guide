@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-
 <title>CEH Sustainable Consumer Guide</title>
+
+<!-- CSV parser (REQUIRED – handles commas correctly) -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
 /* =========================================================
    PURPOSE & FUNCTION
    ---------------------------------------------------------
-   This page loads a CSV-based directory of local businesses
-   and displays them as filterable cards (search, location,
-   practices). It is designed for GitHub Pages and embedded
-   use, with no external dependencies and mobile-safe layout.
+   This page loads the CEH Sustainable Consumer Guide from a
+   CSV file and displays it as searchable, filterable cards.
+   It is designed for GitHub Pages and Google Sites embeds.
    ========================================================= */
 
-/* ---------- Base ---------- */
 body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -30,7 +30,6 @@ body {
   padding: 16px;
 }
 
-/* ---------- Header ---------- */
 h1 {
   color: #2e8b57;
   margin-bottom: 4px;
@@ -69,21 +68,20 @@ h1 {
   background: #f1f5f9;
 }
 
-/* Mobile wrap */
 @media (max-width: 700px) {
   .filters {
     grid-template-columns: 1fr;
   }
 }
 
-/* ---------- Results Count ---------- */
+/* ---------- Results count ---------- */
 .results-count {
   font-size: 13px;
   margin: 8px 0 14px;
   color: #4b5563;
 }
 
-/* ---------- Cards Grid ---------- */
+/* ---------- Cards ---------- */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -96,7 +94,6 @@ h1 {
   }
 }
 
-/* ---------- Card ---------- */
 .card {
   background: #f7f5f2;
   border: 1px solid #d9d9d9;
@@ -114,14 +111,12 @@ h1 {
   font-weight: 600;
 }
 
-/* ---------- Text ---------- */
 .description {
   font-size: 14.5px;
   line-height: 1.45;
   color: #374151;
 }
 
-/* ---------- Links ---------- */
 .card a {
   color: #1a73e8;
   text-decoration: none;
@@ -132,13 +127,13 @@ h1 {
   text-decoration: underline;
 }
 
-/* ---------- Category (text link) ---------- */
+/* ---------- Category ---------- */
 .category-link {
   font-size: 13px;
   color: #1a73e8;
 }
 
-/* ---------- Location tag (blue) ---------- */
+/* ---------- Location tag ---------- */
 .location-tag {
   display: inline-block;
   padding: 4px 10px;
@@ -150,7 +145,7 @@ h1 {
   margin: 2px 6px 2px 0;
 }
 
-/* ---------- Practice tag (green) ---------- */
+/* ---------- Practice tag ---------- */
 .practice-tag {
   display: inline-block;
   padding: 4px 10px;
@@ -187,68 +182,49 @@ h1 {
 </div>
 
 <div class="results-count" id="resultsCount"></div>
-
 <div class="cards" id="cards"></div>
 
 </div>
 
 <script>
-/* =========================
-   CONFIG
-   ========================= */
-const CSV_URL = "data.csv"; // <-- change only if filename differs
+const CSV_URL = "data.csv";   // <-- your existing CSV file
 
 let allRows = [];
 
-/* =========================
-   CSV PARSER
-   ========================= */
-function parseCSV(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  const headers = lines.shift().split(",").map(h => h.trim());
-  return lines.map(line => {
-    const values = line.split(",").map(v => v.trim());
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = values[i] || "");
-    return obj;
-  });
-}
-
-/* =========================
-   INIT
-   ========================= */
-fetch(CSV_URL)
-  .then(r => r.text())
-  .then(text => {
-    allRows = parseCSV(text).filter(r => r.Status.toLowerCase() === "active");
+Papa.parse(CSV_URL, {
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  complete: function (results) {
+    allRows = results.data.filter(
+      r => r.Status && r.Status.toLowerCase() === "active"
+    );
     buildFilters();
     render();
-  });
+  },
+  error: function (err) {
+    console.error("CSV load error:", err);
+  }
+});
 
-/* =========================
-   FILTER BUILD
-   ========================= */
 function buildFilters() {
   const locSet = new Set();
   const pracSet = new Set();
 
   allRows.forEach(r => {
-    r.Location.split(";").forEach(l => locSet.add(l.trim()));
-    r.Practices.split(";").forEach(p => pracSet.add(p.trim()));
+    r.Location?.split(";").forEach(l => locSet.add(l.trim()));
+    r.Practices?.split(";").forEach(p => pracSet.add(p.trim()));
   });
 
-  [...locSet].filter(Boolean).sort().forEach(l => {
-    locationFilter.add(new Option(l, l));
-  });
+  [...locSet].filter(Boolean).sort().forEach(l =>
+    locationFilter.add(new Option(l, l))
+  );
 
-  [...pracSet].filter(Boolean).sort().forEach(p => {
-    practiceFilter.add(new Option(p, p));
-  });
+  [...pracSet].filter(Boolean).sort().forEach(p =>
+    practiceFilter.add(new Option(p, p))
+  );
 }
 
-/* =========================
-   RENDER
-   ========================= */
 function render() {
   const q = searchInput.value.toLowerCase();
   const loc = locationFilter.value;
@@ -271,15 +247,15 @@ function render() {
 
     card.innerHTML = `
       <h3>${r.Name}</h3>
-      <div class="description">${r["Product/Service"]}</div>
+      <div class="description">${r["Product/Service"] || ""}</div>
       ${r.Category ? `<div class="category-link">${r.Category}</div>` : ""}
       <div>
-        ${r.Location.split(";").map(l =>
+        ${(r.Location || "").split(";").map(l =>
           `<span class="location-tag">${l.trim()}</span>`
         ).join("")}
       </div>
       <div>
-        ${r.Practices.split(";").map(p =>
+        ${(r.Practices || "").split(";").map(p =>
           `<span class="practice-tag" onclick="setPractice('${p.trim()}')">${p.trim()}</span>`
         ).join("")}
       </div>
@@ -290,9 +266,6 @@ function render() {
   });
 }
 
-/* =========================
-   EVENTS
-   ========================= */
 searchInput.oninput = render;
 locationFilter.onchange = render;
 practiceFilter.onchange = render;
