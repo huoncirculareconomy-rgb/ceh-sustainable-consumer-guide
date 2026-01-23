@@ -7,12 +7,12 @@
 <!--
 PURPOSE & FUNCTION
 This script renders the CEH Sustainable Consumer Guide as a searchable,
-filterable card-based directory using data published as a CSV from
-Google Sheets. It is designed to work reliably inside Google Sites
-embeds, including on mobile devices. Location and Practice fields are
-normalised so that combined values (e.g. "Huonville / Franklin") are
-split into individual filter options, removing duplicates while still
-matching records correctly.
+filterable, card-based directory using CSV data published from Google
+Sheets. It includes a robust CSV parser that correctly handles quoted
+fields and embedded commas, and normalises Locations and Practices so
+combined values are split into individual filter options without
+duplicates. Designed for reliability inside Google Sites embeds,
+including mobile devices.
 -->
 
 <style>
@@ -62,15 +62,11 @@ matching records correctly.
   }
 
   @media (min-width: 700px) {
-    .cards {
-      grid-template-columns: repeat(2, 1fr);
-    }
+    .cards { grid-template-columns: repeat(2, 1fr); }
   }
 
   @media (min-width: 1000px) {
-    .cards {
-      grid-template-columns: repeat(3, 1fr);
-    }
+    .cards { grid-template-columns: repeat(3, 1fr); }
   }
 
   .card {
@@ -111,7 +107,7 @@ matching records correctly.
 <div class="container">
 
   <h1>CEH Sustainable Consumer Guide</h1>
-  <div class="slogan" id="slogan">Loading…</div>
+  <div class="slogan" id="slogan">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
 
   <div class="controls">
     <input id="search" placeholder="Search businesses or services">
@@ -131,6 +127,47 @@ matching records correctly.
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?output=csv";
 
+/* Robust CSV parser (handles quotes + commas) */
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const n = text[i + 1];
+
+    if (c === '"' && inQuotes && n === '"') {
+      cell += '"';
+      i++;
+    } else if (c === '"') {
+      inQuotes = !inQuotes;
+    } else if (c === ',' && !inQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((c === '\n' || c === '\r') && !inQuotes) {
+      if (cell || row.length) {
+        row.push(cell);
+        rows.push(row);
+        row = [];
+        cell = "";
+      }
+    } else {
+      cell += c;
+    }
+  }
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  const headers = rows.shift().map(h => h.trim());
+  return rows.map(r =>
+    Object.fromEntries(headers.map((h, i) => [h, (r[i] || "").trim()]))
+  );
+}
+
 function splitTokens(str) {
   if (!str) return [];
   return str.split(/[,;/|]/).map(s => s.trim()).filter(Boolean);
@@ -140,23 +177,7 @@ function norm(s) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function parseCSV(text) {
-  const lines = text.split(/\r?\n/);
-  const headers = lines.shift().split(",");
-  return lines
-    .filter(l => l.trim())
-    .map(l => {
-      const cells = l.split(",");
-      const obj = {};
-      headers.forEach((h, i) => obj[h.trim()] = (cells[i] || "").trim());
-      return obj;
-    });
-}
-
-const state = {
-  all: [],
-  filtered: []
-};
+const state = { all: [], filtered: [] };
 
 function renderFilters() {
   const locSet = new Set();
@@ -195,12 +216,10 @@ function applyFilters() {
       (r.Product || "").toLowerCase().includes(q);
 
     const locMatch =
-      !loc ||
-      splitTokens(r.Location).map(norm).includes(loc);
+      !loc || splitTokens(r.Location).map(norm).includes(loc);
 
     const pracMatch =
-      !prac ||
-      splitTokens(r.Practices).map(norm).includes(prac);
+      !prac || splitTokens(r.Practices).map(norm).includes(prac);
 
     return textMatch && locMatch && pracMatch;
   });
@@ -240,8 +259,6 @@ async function init() {
   state.all = parseCSV(text);
   renderFilters();
   applyFilters();
-  document.getElementById("slogan").textContent =
-    "Choose local. Reduce waste. Strengthen the Huon Valley.";
 }
 
 document.getElementById("search").addEventListener("input", applyFilters);
@@ -250,6 +267,5 @@ document.getElementById("practiceFilter").addEventListener("change", applyFilter
 
 init();
 </script>
-
 </body>
 </html>
