@@ -6,13 +6,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!--
-PURPOSE
--------
-Renders the CEH Sustainable Consumer Guide from a Google Sheets CSV.
-This version is based on the last known good layout and behaviour.
-Only two enhancements have been added:
-1) Notes displayed at the bottom of each card (grey, italic).
-2) Physical addresses link to Google Maps when present.
+PURPOSE & FUNCTION
+------------------
+This page renders the Circular Economy Huon Sustainable Consumer Guide
+from a Google Sheets CSV. It displays businesses as cards with search
+and filters, clickable category and practice pills, contact details,
+and notes. Addresses link to Google Maps. Website and social links are
+automatically extracted from mixed text fields and shown with icons.
 -->
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -135,6 +135,9 @@ h1 {
 }
 
 .contact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
   margin-top: 3px;
 }
 
@@ -142,6 +145,7 @@ h1 {
   color: #1a73e8;
   text-decoration: none;
   font-size: 13px;
+  word-break: break-word;
 }
 
 .contact-item a:hover {
@@ -192,6 +196,7 @@ const practiceFilter = document.getElementById("practiceFilter");
 const cardsEl = document.getElementById("cards");
 const resultsCount = document.getElementById("resultsCount");
 
+/* Helpers */
 function list(val) {
   return (val || "").split(",").map(v => v.trim()).filter(Boolean);
 }
@@ -202,11 +207,19 @@ function extractLinks(val) {
   return matches.map(u => u.startsWith("http") ? u : "https://" + u);
 }
 
+function linkIcon(url) {
+  if (url.includes("facebook.com")) return "📘";
+  if (url.includes("instagram.com")) return "📸";
+  if (url.includes("twitter.com") || url.includes("x.com")) return "🐦";
+  return "🔗";
+}
+
 function mapsLink(address) {
   return "https://www.google.com/maps/search/?api=1&query=" +
          encodeURIComponent(address);
 }
 
+/* Load data */
 Papa.parse(CSV_URL, {
   download: true,
   header: true,
@@ -275,11 +288,16 @@ function render() {
       .join("");
 
     const linksHTML = extractLinks(r.Website)
-      .map(u => `<div class="contact-item"><a href="${u}" target="_blank">${u}</a></div>`)
-      .join("");
+      .map(u => `
+        <div class="contact-item">
+          <span>${linkIcon(u)}</span>
+          <a href="${u}" target="_blank">${u}</a>
+        </div>
+      `).join("");
 
     const addressHTML = r.Address
       ? `<div class="contact-item">
+           <span>📍</span>
            <a href="${mapsLink(r.Address)}" target="_blank">${r.Address}</a>
          </div>`
       : "";
@@ -293,8 +311,8 @@ function render() {
 
       <div class="contact">
         ${linksHTML}
-        ${r.Phone ? `<div class="contact-item">${r.Phone}</div>` : ""}
-        ${r.Email ? `<div class="contact-item">${r.Email}</div>` : ""}
+        ${r.Phone ? `<div class="contact-item"><span>📞</span>${r.Phone}</div>` : ""}
+        ${r.Email ? `<div class="contact-item"><span>✉️</span><a href="mailto:${r.Email}">${r.Email}</a></div>` : ""}
         ${addressHTML}
       </div>
 
