@@ -6,13 +6,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!--
-Purpose & Function
-------------------
-This page loads the CEH Sustainable Consumer Guide from a Google Sheets CSV,
-renders entries as cards, and allows filtering by search text, location,
-category, and practices. Categories (blue pills) and practices (green pills)
-are clickable filters. Data is sorted by Date (newest first). This version
-is designed to be stable for GitHub Pages and embedding in Google Sites.
+====================================================================
+CEH SUSTAINABLE CONSUMER GUIDE – PURPOSE & EXPLANATION (FOR VOLUNTEERS)
+====================================================================
+
+What this page does:
+- Loads the Sustainable Consumer Guide from a Google Sheet (as CSV)
+- Displays each entry as a card
+- Allows filtering by:
+    • Search text
+    • Location (dropdown)
+    • Practices (dropdown)
+    • Clicking Category (blue) or Practice (green) pills
+- Sorts entries so the most recently added appear first
+- Is designed to run reliably on GitHub Pages and inside Google Sites
+
+Why canonical categories and practices were added:
+As more volunteers contribute data, small differences in wording
+(e.g. "refill", "Refills", "BYO-containers") can fragment filters
+and create duplicate pills. This script standardises those values
+behind the scenes so the guide stays clean and consistent, without
+restricting how volunteers enter data in the spreadsheet.
+
+Current status:
+✔ Data loads correctly from Google Sheets
+✔ Filters behave consistently
+✔ Layout matches the original CEH guide closely
+✔ Safe for publication via Google Sites
+
+====================================================================
 -->
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -153,13 +175,33 @@ h1 {
   </div>
 
   <div class="results-count" id="resultsCount"></div>
-
   <div class="cards" id="cards"></div>
 </div>
 
 <script>
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
+
+// Canonical (standardised) labels
+const CANONICAL_CATEGORIES = {
+  "food & drink": "Food & Drink",
+  "new-retail": "New Retail",
+  "secondhand/reuse": "Secondhand / Reuse",
+  "secondhand": "Secondhand / Reuse",
+  "reuse": "Secondhand / Reuse"
+};
+
+const CANONICAL_PRACTICES = {
+  "refill": "Refill",
+  "refills": "Refill",
+  "byo containers": "BYO containers",
+  "byo-containers": "BYO containers",
+  "plastic free": "Plastic-free",
+  "plastic-free": "Plastic-free",
+  "repair": "Repair",
+  "recycle": "Recycle",
+  "reuse": "Reuse"
+};
 
 let rows = [];
 let filtered = [];
@@ -175,6 +217,23 @@ function parseList(value) {
     .split(",")
     .map(v => v.trim())
     .filter(Boolean);
+}
+
+function canonicalise(value, map) {
+  const key = value.toLowerCase().trim();
+  return map[key] || value.trim();
+}
+
+function parseCategories(value) {
+  return parseList(value).map(v =>
+    canonicalise(v, CANONICAL_CATEGORIES)
+  );
+}
+
+function parsePractices(value) {
+  return parseList(value).map(v =>
+    canonicalise(v, CANONICAL_PRACTICES)
+  );
 }
 
 Papa.parse(CSV_URL, {
@@ -196,7 +255,7 @@ function populateFilters() {
 
   rows.forEach(r => {
     parseList(r.Location).forEach(v => locations.add(v));
-    parseList(r.Practices).forEach(v => practices.add(v));
+    parsePractices(r.Practices).forEach(v => practices.add(v));
   });
 
   [...locations].sort().forEach(l =>
@@ -219,7 +278,7 @@ function applyFilters() {
 
     if (search && !text.includes(search)) return false;
     if (loc && !parseList(r.Location).includes(loc)) return false;
-    if (prac && !parseList(r.Practices).includes(prac)) return false;
+    if (prac && !parsePractices(r.Practices).includes(prac)) return false;
     return true;
   });
 
@@ -240,13 +299,13 @@ function render() {
       <div class="description">${r["Product/Service"] || ""}</div>
 
       <div class="tag-row">
-        ${parseList(r.Category)
+        ${parseCategories(r.Category)
           .map(c => `<span class="category-tag" data-cat="${c}">${c}</span>`)
           .join("")}
       </div>
 
       <div class="tag-row">
-        ${parseList(r.Practices)
+        ${parsePractices(r.Practices)
           .map(p => `<span class="practice-tag" data-practice="${p}">${p}</span>`)
           .join("")}
       </div>
@@ -264,11 +323,9 @@ function render() {
 
   document.querySelectorAll(".category-tag").forEach(el =>
     el.onclick = () => {
-      practiceFilter.value = "";
-      searchInput.value = "";
-      locationFilter.value = "";
-      applyFilters();
       searchInput.value = el.dataset.cat;
+      locationFilter.value = "";
+      practiceFilter.value = "";
       applyFilters();
     }
   );
