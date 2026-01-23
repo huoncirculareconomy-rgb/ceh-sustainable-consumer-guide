@@ -6,35 +6,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!--
-====================================================================
-CEH SUSTAINABLE CONSUMER GUIDE – PURPOSE & EXPLANATION (FOR VOLUNTEERS)
-====================================================================
+PURPOSE & FUNCTION (FOR VOLUNTEERS)
 
-What this page does:
-- Loads the Sustainable Consumer Guide from a Google Sheet (as CSV)
-- Displays each entry as a card
-- Allows filtering by:
-    • Search text
-    • Location (dropdown)
-    • Practices (dropdown)
-    • Clicking Category (blue) or Practice (green) pills
-- Sorts entries so the most recently added appear first
-- Is designed to run reliably on GitHub Pages and inside Google Sites
+This page displays the CEH Sustainable Consumer Guide using data loaded
+from a Google Sheet published as CSV.
 
-Why canonical categories and practices were added:
-As more volunteers contribute data, small differences in wording
-(e.g. "refill", "Refills", "BYO-containers") can fragment filters
-and create duplicate pills. This script standardises those values
-behind the scenes so the guide stays clean and consistent, without
-restricting how volunteers enter data in the spreadsheet.
+Users can:
+- Search listings
+- Filter by Location and Practices (dropdowns)
+- Filter by Category (blue pills) and Practices (green pills)
+- Reset all filters
 
-Current status:
-✔ Data loads correctly from Google Sheets
-✔ Filters behave consistently
-✔ Layout matches the original CEH guide closely
-✔ Safe for publication via Google Sites
+Categories and Practices are standardised (canonicalised) in code to
+prevent duplicates caused by inconsistent wording in the spreadsheet.
 
-====================================================================
+The current state is stable and suitable for publication via Google Sites.
 -->
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -42,7 +28,7 @@ Current status:
 <style>
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-family: system-ui, Arial, sans-serif;
   background: #f6f3ee;
   color: #24323f;
 }
@@ -63,6 +49,7 @@ h1 {
   margin-bottom: 20px;
 }
 
+/* Filters */
 .filters {
   display: grid;
   grid-template-columns: 1fr 220px 220px auto;
@@ -77,8 +64,17 @@ h1 {
   font-size: 14px;
 }
 
-.filters button {
+/* Reset button (blue) */
+#resetBtn {
+  background: #1a73e8;
+  color: #ffffff;
+  border: 1px solid #1a73e8;
+  border-radius: 6px;
   cursor: pointer;
+}
+
+#resetBtn:hover {
+  background: #1558b0;
 }
 
 @media (max-width: 800px) {
@@ -92,6 +88,7 @@ h1 {
   margin: 10px 0;
 }
 
+/* Cards */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -116,10 +113,7 @@ h1 {
   margin-bottom: 8px;
 }
 
-.tag-row {
-  margin-top: 6px;
-}
-
+/* Pills */
 .category-tag,
 .practice-tag {
   display: inline-block;
@@ -143,6 +137,7 @@ h1 {
   border: 1px solid #bfe3cc;
 }
 
+/* Contact block */
 .contact-block {
   margin-top: 10px;
   font-size: 13px;
@@ -182,7 +177,7 @@ h1 {
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
 
-// Canonical (standardised) labels
+/* Canonical labels */
 const CANONICAL_CATEGORIES = {
   "food & drink": "Food & Drink",
   "new-retail": "New Retail",
@@ -205,6 +200,7 @@ const CANONICAL_PRACTICES = {
 
 let rows = [];
 let filtered = [];
+let activeCategory = "";
 
 const searchInput = document.getElementById("searchInput");
 const locationFilter = document.getElementById("locationFilter");
@@ -279,6 +275,8 @@ function applyFilters() {
     if (search && !text.includes(search)) return false;
     if (loc && !parseList(r.Location).includes(loc)) return false;
     if (prac && !parsePractices(r.Practices).includes(prac)) return false;
+    if (activeCategory && !parseCategories(r.Category).includes(activeCategory)) return false;
+
     return true;
   });
 
@@ -298,13 +296,13 @@ function render() {
       <h3>${r.Name}</h3>
       <div class="description">${r["Product/Service"] || ""}</div>
 
-      <div class="tag-row">
+      <div>
         ${parseCategories(r.Category)
           .map(c => `<span class="category-tag" data-cat="${c}">${c}</span>`)
           .join("")}
       </div>
 
-      <div class="tag-row">
+      <div>
         ${parsePractices(r.Practices)
           .map(p => `<span class="practice-tag" data-practice="${p}">${p}</span>`)
           .join("")}
@@ -323,9 +321,7 @@ function render() {
 
   document.querySelectorAll(".category-tag").forEach(el =>
     el.onclick = () => {
-      searchInput.value = el.dataset.cat;
-      locationFilter.value = "";
-      practiceFilter.value = "";
+      activeCategory = el.dataset.cat;
       applyFilters();
     }
   );
@@ -340,12 +336,16 @@ function render() {
 
 searchInput.oninput = applyFilters;
 locationFilter.onchange = applyFilters;
-practiceFilter.onchange = applyFilters;
+practiceFilter.onchange = () => {
+  activeCategory = "";
+  applyFilters();
+};
 
 document.getElementById("resetBtn").onclick = () => {
   searchInput.value = "";
   locationFilter.value = "";
   practiceFilter.value = "";
+  activeCategory = "";
   applyFilters();
 };
 </script>
