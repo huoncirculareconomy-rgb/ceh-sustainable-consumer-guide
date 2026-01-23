@@ -33,11 +33,20 @@ so combined entries are split into individual filter options.
     color: #444;
   }
 
+.filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* Mobile: stack filters vertically */
+@media (max-width: 700px) {
   .filters {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 20px;
+    grid-template-columns: 1fr;
+  }
+}
+
   }
 
   input, select {
@@ -225,3 +234,4 @@ pracEl.addEventListener("change", renderCards);
 
 </body>
 </html>
+
