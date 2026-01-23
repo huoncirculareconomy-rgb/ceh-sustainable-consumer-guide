@@ -13,7 +13,7 @@ CEH SUSTAINABLE CONSUMER GUIDE — PURPOSE & EXPLANATION (FOR VOLUNTEERS)
 What this page does
 ------------------
 • Loads the CEH Sustainable Consumer Guide from a Google Sheet (CSV)
-• Displays entries as cards, newest first
+• Displays each entry as a card, newest first
 • Allows filtering by:
     - Search text
     - Location (dropdown)
@@ -30,16 +30,17 @@ As multiple volunteers contribute data, small wording differences
 This script standardises those values internally so the interface
 remains clean and consistent, without restricting spreadsheet entry.
 
-Why website links are split
----------------------------
-Some spreadsheet cells contain multiple website/social links.
-These are now automatically separated and displayed individually
-with appropriate icons (website, Facebook, Instagram, etc.).
+Why website links are extracted
+-------------------------------
+Some spreadsheet cells contain descriptive text mixed with links.
+The script now extracts only valid URLs (http/https or www),
+ignores surrounding text, and displays each link separately
+with an appropriate icon.
 
 Current status
 --------------
 ✔ Data loads correctly from Google Sheets
-✔ Filters behave correctly and independently
+✔ Filters behave independently and correctly
 ✔ Cards closely match the original CEH styling
 ✔ Safe for publication via GitHub Pages and Google Sites
 
@@ -255,13 +256,13 @@ function parsePractices(value) {
   );
 }
 
-/* Split multiple website / social links */
+/* Extract only real URLs from mixed text */
 function splitLinks(value) {
   if (!value) return [];
-  return value
-    .split(/\n|,|\s+/)
-    .map(v => v.trim())
-    .filter(v => v.startsWith("http"));
+  const matches = value.match(/(https?:\/\/[^\s,]+|www\.[^\s,]+)/gi) || [];
+  return matches.map(url =>
+    url.startsWith("http") ? url : "https://" + url
+  );
 }
 
 function linkIcon(url) {
