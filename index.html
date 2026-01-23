@@ -33,11 +33,17 @@ so combined entries are split into individual filter options.
     color: #444;
   }
 
-.filters {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 20px;
+<div class="filters">
+  <input id="search" placeholder="Search businesses or services">
+  <select id="locationFilter">
+    <option value="">All locations</option>
+  </select>
+  <select id="practiceFilter">
+    <option value="">All practices</option>
+  </select>
+  <button id="resetFilters" type="button">Reset filters</button>
+</div>
+
 }
 
 /* Mobile: stack filters vertically */
@@ -234,4 +240,5 @@ pracEl.addEventListener("change", renderCards);
 
 </body>
 </html>
+
 
