@@ -1,271 +1,208 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CEH Sustainable Consumer Guide</title>
 
 <!--
 PURPOSE & FUNCTION
-This script renders the CEH Sustainable Consumer Guide as a searchable,
-filterable, card-based directory using CSV data published from Google
-Sheets. It includes a robust CSV parser that correctly handles quoted
-fields and embedded commas, and normalises Locations and Practices so
-combined values are split into individual filter options without
-duplicates. Designed for reliability inside Google Sites embeds,
-including mobile devices.
+This page loads a public CSV from Google Sheets and presents it as a searchable,
+filterable directory of Huon Valley businesses. It normalises multi-value fields
+(such as Locations and Practices), removes duplicates, and renders results as
+responsive cards. All processing happens client-side; the spreadsheet remains
+the single source of truth.
 -->
 
 <style>
-  * { box-sizing: border-box; }
-
   body {
-    margin: 0;
     font-family: system-ui, Arial, sans-serif;
-    background: transparent;
-  }
-
-  .container {
-    padding: 12px;
+    margin: 0;
+    padding: 20px;
+    background: #f6f3ee;
   }
 
   h1 {
-    margin: 0 0 6px;
-    font-size: 1.4rem;
-    color: #2E8B57;
+    color: #2e8b57;
+    margin-bottom: 4px;
   }
 
-  .slogan {
+  .subtitle {
     font-style: italic;
-    color: #555;
-    margin-bottom: 12px;
+    margin-bottom: 20px;
   }
 
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
+  .filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
   }
 
   input, select {
     padding: 10px;
-    font-size: 14px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    flex: 1 1 200px;
+    font-size: 16px;
   }
 
   .cards {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  @media (min-width: 700px) {
-    .cards { grid-template-columns: repeat(2, 1fr); }
-  }
-
-  @media (min-width: 1000px) {
-    .cards { grid-template-columns: repeat(3, 1fr); }
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
   }
 
   .card {
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 12px;
     background: #fff;
+    border-radius: 8px;
+    padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
   }
 
   .card h3 {
-    margin: 0 0 6px;
-    font-size: 1.05rem;
-  }
-
-  .muted {
-    color: #666;
-    font-size: 0.9rem;
-  }
-
-  .tags {
-    margin-top: 6px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    margin-top: 0;
   }
 
   .tag {
+    display: inline-block;
+    background: #e0f2e9;
+    color: #205c3b;
+    padding: 3px 8px;
+    border-radius: 12px;
     font-size: 12px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: #eef2ff;
-    border: 1px solid #c7d2fe;
+    margin: 2px 4px 2px 0;
+  }
+
+  a {
+    color: #1a5fb4;
+    text-decoration: none;
   }
 </style>
 </head>
 
 <body>
-<div class="container">
 
-  <h1>CEH Sustainable Consumer Guide</h1>
-  <div class="slogan" id="slogan">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
+<h1>CEH Sustainable Consumer Guide</h1>
+<div class="subtitle">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
 
-  <div class="controls">
-    <input id="search" placeholder="Search businesses or services">
-    <select id="locationFilter">
-      <option value="">All locations</option>
-    </select>
-    <select id="practiceFilter">
-      <option value="">All practices</option>
-    </select>
-  </div>
-
-  <div class="cards" id="cards"></div>
-
+<div class="filters">
+  <input id="search" placeholder="Search businesses or services" />
+  <select id="locationFilter">
+    <option value="">All locations</option>
+  </select>
+  <select id="practiceFilter">
+    <option value="">All practices</option>
+  </select>
 </div>
+
+<div id="cards" class="cards"></div>
 
 <script>
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?output=csv";
 
-/* Robust CSV parser (handles quotes + commas) */
-function parseCSV(text) {
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let inQuotes = false;
+const cardsEl = document.getElementById("cards");
+const searchEl = document.getElementById("search");
+const locEl = document.getElementById("locationFilter");
+const pracEl = document.getElementById("practiceFilter");
 
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    const n = text[i + 1];
+let data = [];
 
-    if (c === '"' && inQuotes && n === '"') {
-      cell += '"';
-      i++;
-    } else if (c === '"') {
-      inQuotes = !inQuotes;
-    } else if (c === ',' && !inQuotes) {
-      row.push(cell);
-      cell = "";
-    } else if ((c === '\n' || c === '\r') && !inQuotes) {
-      if (cell || row.length) {
-        row.push(cell);
-        rows.push(row);
-        row = [];
-        cell = "";
-      }
-    } else {
-      cell += c;
-    }
-  }
-  if (cell || row.length) {
-    row.push(cell);
-    rows.push(row);
-  }
-
-  const headers = rows.shift().map(h => h.trim());
-  return rows.map(r =>
-    Object.fromEntries(headers.map((h, i) => [h, (r[i] || "").trim()]))
-  );
-}
+/* ---------- helpers ---------- */
 
 function splitTokens(str) {
   if (!str) return [];
   return str.split(/[,;/|]/).map(s => s.trim()).filter(Boolean);
 }
 
-function norm(s) {
+function normalise(s) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-const state = { all: [], filtered: [] };
+function parseCSV(text) {
+  const [headerLine, ...rows] = text.trim().split(/\r?\n/);
+  const headers = headerLine.split(",").map(h => h.trim());
 
-function renderFilters() {
-  const locSet = new Set();
-  const pracSet = new Set();
-
-  state.all.forEach(r => {
-    splitTokens(r.Location).forEach(l => locSet.add(l));
-    splitTokens(r.Practices).forEach(p => pracSet.add(p));
-  });
-
-  const locSel = document.getElementById("locationFilter");
-  [...locSet].sort().forEach(l => {
-    const o = document.createElement("option");
-    o.value = norm(l);
-    o.textContent = l;
-    locSel.appendChild(o);
-  });
-
-  const pracSel = document.getElementById("practiceFilter");
-  [...pracSet].sort().forEach(p => {
-    const o = document.createElement("option");
-    o.value = norm(p);
-    o.textContent = p;
-    pracSel.appendChild(o);
+  return rows.map(row => {
+    const values = row.split(",");
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = values[i] || "");
+    return obj;
   });
 }
 
-function applyFilters() {
-  const q = document.getElementById("search").value.toLowerCase();
-  const loc = document.getElementById("locationFilter").value;
-  const prac = document.getElementById("practiceFilter").value;
+/* ---------- render ---------- */
 
-  state.filtered = state.all.filter(r => {
-    const textMatch =
-      (r.Name || "").toLowerCase().includes(q) ||
-      (r.Product || "").toLowerCase().includes(q);
+function renderFilters() {
+  const locations = [...new Set(
+    data.flatMap(r => splitTokens(r["Location"]))
+  )].sort();
 
-    const locMatch =
-      !loc || splitTokens(r.Location).map(norm).includes(loc);
+  const practices = [...new Set(
+    data.flatMap(r => splitTokens(r["Practices"]))
+  )].sort();
 
-    const pracMatch =
-      !prac || splitTokens(r.Practices).map(norm).includes(prac);
-
-    return textMatch && locMatch && pracMatch;
+  locations.forEach(l => {
+    const o = document.createElement("option");
+    o.value = l;
+    o.textContent = l;
+    locEl.appendChild(o);
   });
 
-  renderCards();
+  practices.forEach(p => {
+    const o = document.createElement("option");
+    o.value = p;
+    o.textContent = p;
+    pracEl.appendChild(o);
+  });
 }
 
 function renderCards() {
-  const wrap = document.getElementById("cards");
-  wrap.innerHTML = "";
+  const q = normalise(searchEl.value);
+  const loc = normalise(locEl.value);
+  const prac = normalise(pracEl.value);
 
-  if (!state.filtered.length) {
-    wrap.innerHTML = "<div class='muted'>No results found</div>";
-    return;
-  }
+  cardsEl.innerHTML = "";
 
-  state.filtered.forEach(r => {
+  data.filter(r => {
+    const text = normalise(
+      r["Name"] + " " + r["Product/Service"] + " " + r["Category"]
+    );
+
+    const locMatch = !loc || splitTokens(r["Location"]).map(normalise).includes(loc);
+    const pracMatch = !prac || splitTokens(r["Practices"]).map(normalise).includes(prac);
+
+    return (!q || text.includes(q)) && locMatch && pracMatch;
+  }).forEach(r => {
     const card = document.createElement("div");
     card.className = "card";
 
     card.innerHTML = `
-      <h3>${r.Name || ""}</h3>
-      <div class="muted">${r.Product || ""}</div>
-      <div class="muted">${r.Location || ""}</div>
-      <div class="tags">
-        ${splitTokens(r.Practices).map(p =>
-          `<span class="tag">${p}</span>`).join("")}
-      </div>
+      <h3>${r["Name"]}</h3>
+      <p><strong>${r["Product/Service"]}</strong></p>
+      <p>${r["Notes"] || ""}</p>
+      <p>
+        ${splitTokens(r["Practices"]).map(p => `<span class="tag">${p}</span>`).join("")}
+      </p>
+      ${r["Website"] ? `<p><a href="${r["Website"]}" target="_blank">Website</a></p>` : ""}
     `;
-    wrap.appendChild(card);
+
+    cardsEl.appendChild(card);
   });
 }
 
-async function init() {
-  const res = await fetch(CSV_URL, { cache: "no-store" });
-  const text = await res.text();
-  state.all = parseCSV(text);
-  renderFilters();
-  applyFilters();
-}
+/* ---------- init ---------- */
 
-document.getElementById("search").addEventListener("input", applyFilters);
-document.getElementById("locationFilter").addEventListener("change", applyFilters);
-document.getElementById("practiceFilter").addEventListener("change", applyFilters);
+fetch(CSV_URL)
+  .then(r => r.text())
+  .then(text => {
+    data = parseCSV(text).filter(r => r["Status"].toLowerCase() !== "inactive");
+    renderFilters();
+    renderCards();
+  });
 
-init();
+searchEl.addEventListener("input", renderCards);
+locEl.addEventListener("change", renderCards);
+pracEl.addEventListener("change", renderCards);
 </script>
+
 </body>
 </html>
