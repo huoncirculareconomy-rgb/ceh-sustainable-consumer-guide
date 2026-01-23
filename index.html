@@ -1,36 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CEH Sustainable Consumer Guide</title>
 
 <!--
 PURPOSE & FUNCTION
-This page loads the CEH Sustainable Consumer Guide directly from a public
-Google Sheet using Google's official JSON (gviz) endpoint. It renders the data
-as a searchable, filterable card directory. Locations and Practices are
-normalised so combined entries (e.g. "Huonville / Franklin") appear as
-individual filter options. All processing is client-side; the spreadsheet
-remains the single source of truth.
+This page loads data from the CEH Sustainable Consumer Guide Google Sheet
+using Google's official gviz JSON endpoint, explicitly targeting the
+correct sheet tab by gid. It renders the data as a searchable and
+filterable card-based directory. Locations and Practices are normalised
+so combined entries are split into individual filter options.
 -->
 
 <style>
   body {
-    font-family: system-ui, Arial, sans-serif;
     margin: 0;
     padding: 20px;
+    font-family: system-ui, Arial, sans-serif;
     background: #f6f3ee;
   }
 
   h1 {
+    margin: 0 0 6px;
     color: #2e8b57;
-    margin-bottom: 4px;
   }
 
   .subtitle {
     font-style: italic;
     margin-bottom: 20px;
+    color: #444;
   }
 
   .filters {
@@ -59,8 +59,12 @@ remains the single source of truth.
   }
 
   .card h3 {
-    margin-top: 0;
-    margin-bottom: 6px;
+    margin: 0 0 6px;
+  }
+
+  .muted {
+    color: #666;
+    font-size: 0.9rem;
   }
 
   .tag {
@@ -100,9 +104,11 @@ remains the single source of truth.
 <script>
 /* ================= CONFIG ================= */
 
-const SHEET_JSON_URL =
- "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/gviz/tq?gid=2076497318&tqx=out:json";
+const SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
+const SHEET_GID = "2076497318";
 
+const GVIZ_URL =
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${SHEET_GID}&tqx=out:json`;
 
 /* ================= STATE ================= */
 
@@ -120,7 +126,7 @@ function splitTokens(str) {
   return str.split(/[,;/|]/).map(s => s.trim()).filter(Boolean);
 }
 
-function normalise(str) {
+function norm(str) {
   return str.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
@@ -136,37 +142,36 @@ function renderFilters() {
   )].sort();
 
   locations.forEach(l => {
-    const opt = document.createElement("option");
-    opt.value = l;
-    opt.textContent = l;
-    locEl.appendChild(opt);
+    const o = document.createElement("option");
+    o.value = l;
+    o.textContent = l;
+    locEl.appendChild(o);
   });
 
   practices.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p;
-    opt.textContent = p;
-    pracEl.appendChild(opt);
+    const o = document.createElement("option");
+    o.value = p;
+    o.textContent = p;
+    pracEl.appendChild(o);
   });
 }
 
 function renderCards() {
-  const q = normalise(searchEl.value);
-  const loc = normalise(locEl.value);
-  const prac = normalise(pracEl.value);
+  const q = norm(searchEl.value);
+  const loc = norm(locEl.value);
+  const prac = norm(pracEl.value);
 
   cardsEl.innerHTML = "";
 
   rows.filter(r => {
-    const text = normalise(
-      r.Name + " " + r["Product/Service"] + " " + r.Category
-    );
+    const text =
+      norm(`${r.Name} ${r["Product/Service"]} ${r.Category}`);
 
-    const locMatch = !loc ||
-      splitTokens(r.Location).map(normalise).includes(loc);
+    const locMatch =
+      !loc || splitTokens(r.Location).map(norm).includes(loc);
 
-    const pracMatch = !prac ||
-      splitTokens(r.Practices).map(normalise).includes(prac);
+    const pracMatch =
+      !prac || splitTokens(r.Practices).map(norm).includes(prac);
 
     return (!q || text.includes(q)) && locMatch && pracMatch;
   }).forEach(r => {
@@ -175,11 +180,12 @@ function renderCards() {
 
     card.innerHTML = `
       <h3>${r.Name}</h3>
-      <p><strong>${r["Product/Service"]}</strong></p>
+      <div class="muted">${r["Product/Service"]}</div>
       ${r.Notes ? `<p>${r.Notes}</p>` : ""}
-      <p>
-        ${splitTokens(r.Practices).map(p => `<span class="tag">${p}</span>`).join("")}
-      </p>
+      <div>
+        ${splitTokens(r.Practices).map(p =>
+          `<span class="tag">${p}</span>`).join("")}
+      </div>
       ${r.Website ? `<p><a href="${r.Website}" target="_blank">Website</a></p>` : ""}
     `;
 
@@ -189,16 +195,21 @@ function renderCards() {
 
 /* ================= LOAD ================= */
 
-fetch(SHEET_JSON_URL)
+fetch(GVIZ_URL)
   .then(r => r.text())
   .then(text => {
-    const json = JSON.parse(text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1));
-    const cols = json.table.cols.map(c => c.label);
+    const json = JSON.parse(
+      text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1)
+    );
+
+    const headers = json.table.cols.map(c => c.label);
 
     rows = json.table.rows
       .map(r => {
         const obj = {};
-        r.c.forEach((cell, i) => obj[cols[i]] = cell ? cell.v : "");
+        r.c.forEach((cell, i) => {
+          obj[headers[i]] = cell ? cell.v : "";
+        });
         return obj;
       })
       .filter(r => r.Status && r.Status.toLowerCase() !== "inactive");
@@ -214,4 +225,3 @@ pracEl.addEventListener("change", renderCards);
 
 </body>
 </html>
-
