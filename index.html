@@ -1,128 +1,176 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!--
 PURPOSE & FUNCTION
-This page implements the CEH Sustainable Consumer Guide for embedding in Google Sites.
-It loads directory and slogan data from Google Sheets using the Google Visualization
-(GViz) API with responseHandler callbacks, parses the returned table JSON directly
-(without getDataTable), and renders a responsive card-based directory.
-This architecture is required to comply with Google Sites iframe security policies.
+This page implements a minimal standalone version of the CEH Sustainable Consumer Guide.
+It loads directory data from a published Google Sheets CSV, parses it client-side,
+and renders simple cards. This confirms that GitHub Pages, JavaScript execution,
+and the data source are all working reliably.
 -->
 
 <title>CEH Sustainable Consumer Guide</title>
 
 <style>
-body{margin:0;font-family:Arial,sans-serif;background:#f7f5f2}
-.header{text-align:center;padding:20px;background:#f5f2ef}
-h1{margin:0;color:#2e8b57}
-.slogan{margin-top:8px;font-style:italic;color:#444}
-.cards{padding:14px;display:grid;grid-template-columns:1fr;gap:12px}
-@media(min-width:700px){.cards{grid-template-columns:repeat(2,1fr)}}
-@media(min-width:1100px){.cards{grid-template-columns:repeat(3,1fr)}}
-.card{background:#fff;border:1px solid #d1d5db;border-radius:12px;padding:12px}
-.badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3}
-.muted{color:#6b7280;font-style:italic}
-.error{margin:12px;padding:10px;border:1px solid #ef4444;background:#fef2f2;color:#991b1b;border-radius:10px}
+  body {
+    margin: 0;
+    font-family: system-ui, Arial, sans-serif;
+    background: #f7f5f2;
+    color: #111;
+  }
+  header {
+    padding: 20px;
+    text-align: center;
+    background: #f5f2ef;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  h1 {
+    margin: 0;
+    color: #2e8b57;
+    font-weight: 600;
+  }
+  .status {
+    padding: 12px;
+    font-style: italic;
+    color: #555;
+    text-align: center;
+  }
+  .cards {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  @media (min-width: 700px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1100px) {
+    .cards { grid-template-columns: repeat(3, 1fr); }
+  }
+  .card {
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .card h3 {
+    margin: 0 0 6px 0;
+    font-size: 16px;
+  }
+  .muted {
+    color: #6b7280;
+    font-style: italic;
+    font-size: 14px;
+  }
 </style>
 </head>
 
 <body>
 
-<div class="header">
+<header>
   <h1>CEH Sustainable Consumer Guide</h1>
-  <div id="slogan" class="slogan">Loading…</div>
-</div>
+</header>
 
-<div id="errorBox" class="error" style="display:none"></div>
-<div id="cards" class="cards">
-  <div class="muted">Loading directory…</div>
-</div>
+<div id="status" class="status">Loading directory…</div>
+<div id="cards" class="cards"></div>
 
 <script>
-var SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
-var DIR_SHEET = "Directory";
-var SLOGAN_SHEET = "Slogans";
+/* ===== CONFIGURATION ===== */
 
-function esc(s){
-  return (s||"").replace(/[&<>"']/g,function(c){
-    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-  });
+// Published CSV URL (directory sheet)
+const CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=2076497318&single=true&output=csv";
+
+/* ===== UTILITIES ===== */
+
+function escapeHTML(s) {
+  return (s || "").replace(/[&<>"']/g, c => (
+    { "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c]
+  ));
 }
 
-function parseTable(resp){
-  var cols = resp.table.cols.map(function(c){return c.label});
-  return resp.table.rows.map(function(r){
-    var o = {};
-    r.c.forEach(function(cell,i){
-      o[cols[i]] = cell ? cell.v : "";
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cell = "", inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], n = text[i + 1];
+
+    if (c === '"') {
+      if (inQuotes && n === '"') {
+        cell += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((c === '\n' || c === '\r') && !inQuotes) {
+      if (cell || row.length) {
+        row.push(cell);
+        rows.push(row);
+        row = [];
+        cell = "";
+      }
+    } else {
+      cell += c;
+    }
+  }
+
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  const headers = rows.shift().map(h => h.trim());
+  return rows
+    .filter(r => r.some(v => v && v.trim()))
+    .map(r => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = (r[i] || "").trim());
+      return obj;
     });
-    return o;
-  });
 }
 
-/* ===== GVIZ CALLBACKS (GLOBAL) ===== */
+/* ===== LOAD & RENDER ===== */
 
-function handleDirectory(resp){
-  try{
-    var rows = parseTable(resp).filter(function(r){
-      return !r.Status || String(r.Status).toLowerCase() === "active";
-    });
+fetch(CSV_URL + "&_=" + Date.now())
+  .then(r => r.text())
+  .then(text => {
+    const data = parseCSV(text)
+      .filter(r => !r.Status || r.Status.toLowerCase() === "active");
 
-    var cards = document.getElementById("cards");
+    const cards = document.getElementById("cards");
+    const status = document.getElementById("status");
+
     cards.innerHTML = "";
 
-    rows.forEach(function(r){
-      var d = document.createElement("div");
-      d.className = "card";
-      d.innerHTML =
-        "<h3>"+esc(r.Name)+"</h3>" +
-        (r.Category?"<div class='badge'>"+esc(r.Category)+"</div>":"") +
-        "<div>"+esc(r.Product||"")+"</div>" +
-        (r.Website?"<div><a target='_blank' href='"+esc(r.Website)+"'>Website</a></div>":"") +
-        (r.Location?"<div>"+esc(r.Location)+"</div>":"") +
-        (r.Notes?"<div class='muted'>"+esc(r.Notes)+"</div>":"");
-      cards.appendChild(d);
+    if (!data.length) {
+      status.textContent = "No entries found.";
+      return;
+    }
+
+    data.forEach(r => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <h3>${escapeHTML(r.Name)}</h3>
+        <div>${escapeHTML(r["Product / Service"] || r.Product || "")}</div>
+        ${r.Location ? `<div class="muted">${escapeHTML(r.Location)}</div>` : ""}
+      `;
+      cards.appendChild(card);
     });
-  }catch(e){
-    document.getElementById("errorBox").style.display="block";
-    document.getElementById("errorBox").textContent="Directory failed to load.";
-  }
-}
 
-function handleSlogans(resp){
-  try{
-    var rows = parseTable(resp).map(function(r){return r.Text}).filter(Boolean);
-    if(!rows.length) return;
-    var i=0;
-    var el=document.getElementById("slogan");
-    el.textContent=rows[0];
-    setInterval(function(){
-      i=(i+1)%rows.length;
-      el.textContent=rows[i];
-    },15000);
-  }catch(e){
-    document.getElementById("slogan").textContent="Slogans unavailable";
-  }
-}
-
-/* ===== LOAD GVIZ ===== */
-
-function loadGViz(sheet, handler){
-  var s=document.createElement("script");
-  s.src=
-    "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq"+
-    "?sheet="+encodeURIComponent(sheet)+
-    "&tq=select%20*"+
-    "&tqx=responseHandler:"+handler;
-  document.body.appendChild(s);
-}
-
-loadGViz(SLOGAN_SHEET,"handleSlogans");
-loadGViz(DIR_SHEET,"handleDirectory");
+    status.textContent = "Showing " + data.length + " entries";
+  })
+  .catch(err => {
+    document.getElementById("status").textContent =
+      "Directory failed to load.";
+  });
 </script>
 
 </body>
