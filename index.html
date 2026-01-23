@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CEH Sustainable Consumer Guide</title>
 
 <!--
 PURPOSE & FUNCTION
-This page loads a public CSV from Google Sheets and presents it as a searchable,
-filterable directory of Huon Valley businesses. It normalises multi-value fields
-(such as Locations and Practices), removes duplicates, and renders results as
-responsive cards. All processing happens client-side; the spreadsheet remains
-the single source of truth.
+This page loads the CEH Sustainable Consumer Guide directly from a public
+Google Sheet using Google's official JSON (gviz) endpoint. It renders the data
+as a searchable, filterable card directory. Locations and Practices are
+normalised so combined entries (e.g. "Huonville / Franklin") appear as
+individual filter options. All processing is client-side; the spreadsheet
+remains the single source of truth.
 -->
 
 <style>
@@ -59,6 +60,7 @@ the single source of truth.
 
   .card h3 {
     margin-top: 0;
+    margin-bottom: 6px;
   }
 
   .tag {
@@ -84,7 +86,7 @@ the single source of truth.
 <div class="subtitle">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
 
 <div class="filters">
-  <input id="search" placeholder="Search businesses or services" />
+  <input id="search" placeholder="Search businesses or services">
   <select id="locationFilter">
     <option value="">All locations</option>
   </select>
@@ -96,62 +98,54 @@ the single source of truth.
 <div id="cards" class="cards"></div>
 
 <script>
-const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?output=csv";
+/* ================= CONFIG ================= */
+
+const SHEET_JSON_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/gviz/tq?tqx=out:json";
+
+/* ================= STATE ================= */
 
 const cardsEl = document.getElementById("cards");
 const searchEl = document.getElementById("search");
 const locEl = document.getElementById("locationFilter");
 const pracEl = document.getElementById("practiceFilter");
 
-let data = [];
+let rows = [];
 
-/* ---------- helpers ---------- */
+/* ================= HELPERS ================= */
 
 function splitTokens(str) {
   if (!str) return [];
   return str.split(/[,;/|]/).map(s => s.trim()).filter(Boolean);
 }
 
-function normalise(s) {
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
+function normalise(str) {
+  return str.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function parseCSV(text) {
-  const [headerLine, ...rows] = text.trim().split(/\r?\n/);
-  const headers = headerLine.split(",").map(h => h.trim());
-
-  return rows.map(row => {
-    const values = row.split(",");
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = values[i] || "");
-    return obj;
-  });
-}
-
-/* ---------- render ---------- */
+/* ================= RENDER ================= */
 
 function renderFilters() {
   const locations = [...new Set(
-    data.flatMap(r => splitTokens(r["Location"]))
+    rows.flatMap(r => splitTokens(r.Location))
   )].sort();
 
   const practices = [...new Set(
-    data.flatMap(r => splitTokens(r["Practices"]))
+    rows.flatMap(r => splitTokens(r.Practices))
   )].sort();
 
   locations.forEach(l => {
-    const o = document.createElement("option");
-    o.value = l;
-    o.textContent = l;
-    locEl.appendChild(o);
+    const opt = document.createElement("option");
+    opt.value = l;
+    opt.textContent = l;
+    locEl.appendChild(opt);
   });
 
   practices.forEach(p => {
-    const o = document.createElement("option");
-    o.value = p;
-    o.textContent = p;
-    pracEl.appendChild(o);
+    const opt = document.createElement("option");
+    opt.value = p;
+    opt.textContent = p;
+    pracEl.appendChild(opt);
   });
 }
 
@@ -162,13 +156,16 @@ function renderCards() {
 
   cardsEl.innerHTML = "";
 
-  data.filter(r => {
+  rows.filter(r => {
     const text = normalise(
-      r["Name"] + " " + r["Product/Service"] + " " + r["Category"]
+      r.Name + " " + r["Product/Service"] + " " + r.Category
     );
 
-    const locMatch = !loc || splitTokens(r["Location"]).map(normalise).includes(loc);
-    const pracMatch = !prac || splitTokens(r["Practices"]).map(normalise).includes(prac);
+    const locMatch = !loc ||
+      splitTokens(r.Location).map(normalise).includes(loc);
+
+    const pracMatch = !prac ||
+      splitTokens(r.Practices).map(normalise).includes(prac);
 
     return (!q || text.includes(q)) && locMatch && pracMatch;
   }).forEach(r => {
@@ -176,25 +173,35 @@ function renderCards() {
     card.className = "card";
 
     card.innerHTML = `
-      <h3>${r["Name"]}</h3>
+      <h3>${r.Name}</h3>
       <p><strong>${r["Product/Service"]}</strong></p>
-      <p>${r["Notes"] || ""}</p>
+      ${r.Notes ? `<p>${r.Notes}</p>` : ""}
       <p>
-        ${splitTokens(r["Practices"]).map(p => `<span class="tag">${p}</span>`).join("")}
+        ${splitTokens(r.Practices).map(p => `<span class="tag">${p}</span>`).join("")}
       </p>
-      ${r["Website"] ? `<p><a href="${r["Website"]}" target="_blank">Website</a></p>` : ""}
+      ${r.Website ? `<p><a href="${r.Website}" target="_blank">Website</a></p>` : ""}
     `;
 
     cardsEl.appendChild(card);
   });
 }
 
-/* ---------- init ---------- */
+/* ================= LOAD ================= */
 
-fetch(CSV_URL)
+fetch(SHEET_JSON_URL)
   .then(r => r.text())
   .then(text => {
-    data = parseCSV(text).filter(r => r["Status"].toLowerCase() !== "inactive");
+    const json = JSON.parse(text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1));
+    const cols = json.table.cols.map(c => c.label);
+
+    rows = json.table.rows
+      .map(r => {
+        const obj = {};
+        r.c.forEach((cell, i) => obj[cols[i]] = cell ? cell.v : "");
+        return obj;
+      })
+      .filter(r => r.Status && r.Status.toLowerCase() !== "inactive");
+
     renderFilters();
     renderCards();
   });
