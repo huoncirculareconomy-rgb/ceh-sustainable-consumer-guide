@@ -1,88 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>CEH Sustainable Consumer Guide</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<!--
-PURPOSE AND FUNCTION
---------------------
-This page displays the CEH Sustainable Consumer Guide using data loaded
-directly from a published Google Sheets CSV. It provides searchable,
-filterable cards for local businesses, supports mobile and desktop
-layouts, and is designed to be safely embedded or linked from Google Sites.
-All logic (data loading, filtering, rendering) is client-side and
-independent of Google Sites internals.
--->
+<title>CEH Sustainable Consumer Guide</title>
 
 <style>
-/* ===== Base ===== */
+/* =========================================================
+   PURPOSE & FUNCTION
+   ---------------------------------------------------------
+   This page loads a CSV-based directory of local businesses
+   and displays them as filterable cards (search, location,
+   practices). It is designed for GitHub Pages and embedded
+   use, with no external dependencies and mobile-safe layout.
+   ========================================================= */
+
+/* ---------- Base ---------- */
 body {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background: #f6f3ee;
   margin: 0;
-  padding: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: #f7f5f2;
   color: #1f2937;
 }
 
 .container {
   max-width: 1200px;
-  margin: auto;
-  padding: 20px;
+  margin: 0 auto;
+  padding: 16px;
 }
 
-/* ===== Header ===== */
+/* ---------- Header ---------- */
 h1 {
-  color: #2f8f5b;
-  margin-bottom: 6px;
+  color: #2e8b57;
+  margin-bottom: 4px;
 }
 
 .subtitle {
   font-style: italic;
-  color: #555;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
-/* ===== Filters ===== */
+/* ---------- Filters ---------- */
 .filters {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
+  grid-template-columns: 2fr 1fr 1fr auto;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
+.filters input,
+.filters select,
+.filters button {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.filters button {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.filters button:hover {
+  background: #f1f5f9;
+}
+
+/* Mobile wrap */
 @media (max-width: 700px) {
   .filters {
     grid-template-columns: 1fr;
   }
 }
 
-input, select, button {
-  font-size: 16px;
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+/* ---------- Results Count ---------- */
+.results-count {
+  font-size: 13px;
+  margin: 8px 0 14px;
+  color: #4b5563;
 }
 
-button {
-  background: #1a73e8;
-  color: #fff;
-  border-color: #1a73e8;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #155ec2;
-}
-
-#resultsCount {
-  font-size: 14px;
-  color: #555;
-  margin-bottom: 14px;
-}
-
-/* ===== Cards grid ===== */
+/* ---------- Cards Grid ---------- */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -95,7 +96,7 @@ button:hover {
   }
 }
 
-/* ===== Card styling (Steps 1–6) ===== */
+/* ---------- Card ---------- */
 .card {
   background: #f7f5f2;
   border: 1px solid #d9d9d9;
@@ -104,7 +105,7 @@ button:hover {
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .card h3 {
@@ -113,12 +114,14 @@ button:hover {
   font-weight: 600;
 }
 
-.card .description {
+/* ---------- Text ---------- */
+.description {
   font-size: 14.5px;
   line-height: 1.45;
   color: #374151;
 }
 
+/* ---------- Links ---------- */
 .card a {
   color: #1a73e8;
   text-decoration: none;
@@ -129,119 +132,138 @@ button:hover {
   text-decoration: underline;
 }
 
-/* ===== Tags ===== */
-.tags {
-  margin-top: 6px;
+/* ---------- Category (text link) ---------- */
+.category-link {
+  font-size: 13px;
+  color: #1a73e8;
 }
 
-.tag {
+/* ---------- Location tag (blue) ---------- */
+.location-tag {
   display: inline-block;
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 999px;
-  background: #e6f2ff;
+  background: #e6f0ff;
   color: #1a4fb3;
   border: 1px solid #c7dcff;
-  margin: 2px 4px 0 0;
+  margin: 2px 6px 2px 0;
+}
+
+/* ---------- Practice tag (green) ---------- */
+.practice-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  background: #e6f4ea;
+  color: #137333;
+  border: 1px solid #b7dfc2;
+  margin: 2px 6px 2px 0;
   cursor: pointer;
 }
 
-.tag:hover {
-  background: #d4e9ff;
-}
-
-/* ===== Hover lift ===== */
-@media (hover: hover) {
-  .card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  }
+.practice-tag:hover {
+  background: #d2eddc;
 }
 </style>
 </head>
 
 <body>
 <div class="container">
-  <h1>CEH Sustainable Consumer Guide</h1>
-  <div class="subtitle">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
 
-  <div class="filters">
-    <input id="search" placeholder="Search businesses or services">
-    <select id="locationFilter">
-      <option value="">All locations</option>
-    </select>
-    <select id="practiceFilter">
-      <option value="">All practices</option>
-    </select>
-    <button id="resetFilters">Reset filters</button>
-  </div>
+<h1>CEH Sustainable Consumer Guide</h1>
+<div class="subtitle">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
 
-  <div id="resultsCount"></div>
+<div class="filters">
+  <input id="searchInput" placeholder="Search businesses or services" />
+  <select id="locationFilter">
+    <option value="">All locations</option>
+  </select>
+  <select id="practiceFilter">
+    <option value="">All practices</option>
+  </select>
+  <button id="resetBtn">Reset filters</button>
+</div>
 
-  <div id="cards" class="cards"></div>
+<div class="results-count" id="resultsCount"></div>
+
+<div class="cards" id="cards"></div>
+
 </div>
 
 <script>
-const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=2076497318&single=true&output=csv";
+/* =========================
+   CONFIG
+   ========================= */
+const CSV_URL = "data.csv"; // <-- change only if filename differs
 
-const cardsEl = document.getElementById("cards");
-const searchEl = document.getElementById("search");
-const locEl = document.getElementById("locationFilter");
-const pracEl = document.getElementById("practiceFilter");
-const resultsEl = document.getElementById("resultsCount");
+let allRows = [];
 
-let rows = [];
-
-function splitTokens(str) {
-  if (!str) return [];
-  return str.split(/[,;/]/).map(s => s.trim()).filter(Boolean);
-}
-
+/* =========================
+   CSV PARSER
+   ========================= */
 function parseCSV(text) {
-  const lines = text.trim().split("\n");
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
   const headers = lines.shift().split(",").map(h => h.trim());
   return lines.map(line => {
-    const cols = line.split(",").map(c => c.trim());
-    return Object.fromEntries(headers.map((h, i) => [h, cols[i] || ""]));
+    const values = line.split(",").map(v => v.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = values[i] || "");
+    return obj;
   });
 }
 
-function populateFilters() {
-  const locations = new Set();
-  const practices = new Set();
-
-  rows.forEach(r => {
-    splitTokens(r.Location).forEach(l => locations.add(l));
-    splitTokens(r.Practices).forEach(p => practices.add(p));
+/* =========================
+   INIT
+   ========================= */
+fetch(CSV_URL)
+  .then(r => r.text())
+  .then(text => {
+    allRows = parseCSV(text).filter(r => r.Status.toLowerCase() === "active");
+    buildFilters();
+    render();
   });
 
-  [...locations].sort().forEach(l =>
-    locEl.add(new Option(l, l))
-  );
-  [...practices].sort().forEach(p =>
-    pracEl.add(new Option(p, p))
-  );
+/* =========================
+   FILTER BUILD
+   ========================= */
+function buildFilters() {
+  const locSet = new Set();
+  const pracSet = new Set();
+
+  allRows.forEach(r => {
+    r.Location.split(";").forEach(l => locSet.add(l.trim()));
+    r.Practices.split(";").forEach(p => pracSet.add(p.trim()));
+  });
+
+  [...locSet].filter(Boolean).sort().forEach(l => {
+    locationFilter.add(new Option(l, l));
+  });
+
+  [...pracSet].filter(Boolean).sort().forEach(p => {
+    practiceFilter.add(new Option(p, p));
+  });
 }
 
-function renderCards() {
-  const q = searchEl.value.toLowerCase();
-  const loc = locEl.value;
-  const prac = pracEl.value;
+/* =========================
+   RENDER
+   ========================= */
+function render() {
+  const q = searchInput.value.toLowerCase();
+  const loc = locationFilter.value;
+  const prac = practiceFilter.value;
 
-  const filtered = rows.filter(r => {
-    const textMatch =
-      r.Name.toLowerCase().includes(q) ||
-      r["Product/Service"].toLowerCase().includes(q);
-
-    const locMatch = !loc || splitTokens(r.Location).includes(loc);
-    const pracMatch = !prac || splitTokens(r.Practices).includes(prac);
-
-    return textMatch && locMatch && pracMatch && r.Status.toLowerCase() === "active";
+  const filtered = allRows.filter(r => {
+    if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
+    if (loc && !r.Location.includes(loc)) return false;
+    if (prac && !r.Practices.includes(prac)) return false;
+    return true;
   });
 
-  resultsEl.textContent = `Showing ${filtered.length} of ${rows.length} results`;
-
-  cardsEl.innerHTML = "";
+  cards.innerHTML = "";
+  resultsCount.textContent =
+    `Showing ${filtered.length} of ${allRows.length} results`;
 
   filtered.forEach(r => {
     const card = document.createElement("div");
@@ -250,42 +272,42 @@ function renderCards() {
     card.innerHTML = `
       <h3>${r.Name}</h3>
       <div class="description">${r["Product/Service"]}</div>
-      ${r.Website ? `<a href="${r.Website}" target="_blank">${r.Website}</a>` : ""}
-      <div class="tags">
-        ${splitTokens(r.Practices).map(p =>
-          `<span class="tag" data-practice="${p}">${p}</span>`
+      ${r.Category ? `<div class="category-link">${r.Category}</div>` : ""}
+      <div>
+        ${r.Location.split(";").map(l =>
+          `<span class="location-tag">${l.trim()}</span>`
         ).join("")}
       </div>
+      <div>
+        ${r.Practices.split(";").map(p =>
+          `<span class="practice-tag" onclick="setPractice('${p.trim()}')">${p.trim()}</span>`
+        ).join("")}
+      </div>
+      ${r.Website ? `<a href="${r.Website}" target="_blank">${r.Website}</a>` : ""}
     `;
-    cardsEl.appendChild(card);
+
+    cards.appendChild(card);
   });
 }
 
-cardsEl.addEventListener("click", e => {
-  const tag = e.target.closest(".tag");
-  if (!tag) return;
-  pracEl.value = tag.dataset.practice;
-  renderCards();
-});
+/* =========================
+   EVENTS
+   ========================= */
+searchInput.oninput = render;
+locationFilter.onchange = render;
+practiceFilter.onchange = render;
 
-document.getElementById("resetFilters").onclick = () => {
-  searchEl.value = "";
-  locEl.value = "";
-  pracEl.value = "";
-  renderCards();
+resetBtn.onclick = () => {
+  searchInput.value = "";
+  locationFilter.value = "";
+  practiceFilter.value = "";
+  render();
 };
 
-[searchEl, locEl, pracEl].forEach(el =>
-  el.addEventListener("input", renderCards)
-);
-
-fetch(CSV_URL)
-  .then(r => r.text())
-  .then(text => {
-    rows = parseCSV(text);
-    populateFilters();
-    renderCards();
-  });
+function setPractice(p) {
+  practiceFilter.value = p;
+  render();
+}
 </script>
 </body>
 </html>
