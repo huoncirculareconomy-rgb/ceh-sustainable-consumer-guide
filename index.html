@@ -6,266 +6,249 @@
 
 <!--
 PURPOSE & FUNCTION
-This page implements the CEH Sustainable Consumer Guide as a standalone web app.
-It loads directory data from a published Google Sheets CSV, renders responsive
-cards, and provides client-side search plus Location and Practices filters.
-All filtering is done in-browser for reliability and performance.
+This script renders the CEH Sustainable Consumer Guide as a searchable,
+filterable card-based directory using data published as a CSV from
+Google Sheets. It is designed to work reliably inside Google Sites
+embeds, including on mobile devices. Location and Practice fields are
+normalised so that combined values (e.g. "Huonville / Franklin") are
+split into individual filter options, removing duplicates while still
+matching records correctly.
 -->
 
-<title>CEH Sustainable Consumer Guide</title>
-
 <style>
+  * { box-sizing: border-box; }
+
   body {
     margin: 0;
     font-family: system-ui, Arial, sans-serif;
-    background: #f7f5f2;
-    color: #111;
+    background: transparent;
   }
-  header {
-    padding: 20px;
-    text-align: center;
-    background: #f5f2ef;
-    border-bottom: 1px solid #e5e7eb;
-  }
-  h1 {
-    margin: 0;
-    color: #2e8b57;
-    font-weight: 600;
-  }
-  .controls {
+
+  .container {
     padding: 12px;
-    background: #ffffff;
-    border-bottom: 1px solid #e5e7eb;
+  }
+
+  h1 {
+    margin: 0 0 6px;
+    font-size: 1.4rem;
+    color: #2E8B57;
+  }
+
+  .slogan {
+    font-style: italic;
+    color: #555;
+    margin-bottom: 12px;
+  }
+
+  .controls {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    justify-content: center;
+    margin-bottom: 12px;
   }
-  .controls input,
-  .controls select {
-    padding: 10px 12px;
-    font-size: 15px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    min-width: 220px;
-  }
-  .status {
+
+  input, select {
     padding: 10px;
-    font-style: italic;
-    color: #555;
-    text-align: center;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    flex: 1 1 200px;
   }
+
   .cards {
-    padding: 16px;
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
   }
+
   @media (min-width: 700px) {
-    .cards { grid-template-columns: repeat(2, 1fr); }
+    .cards {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
-  @media (min-width: 1100px) {
-    .cards { grid-template-columns: repeat(3, 1fr); }
+
+  @media (min-width: 1000px) {
+    .cards {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
+
   .card {
-    background: #fff;
-    border: 1px solid #d1d5db;
-    border-radius: 12px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
     padding: 12px;
+    background: #fff;
   }
+
   .card h3 {
-    margin: 0 0 6px 0;
-    font-size: 16px;
+    margin: 0 0 6px;
+    font-size: 1.05rem;
   }
+
   .muted {
-    color: #6b7280;
-    font-style: italic;
-    font-size: 14px;
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  .tags {
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tag {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
   }
 </style>
 </head>
 
 <body>
+<div class="container">
 
-<header>
   <h1>CEH Sustainable Consumer Guide</h1>
-</header>
+  <div class="slogan" id="slogan">Loading…</div>
 
-<div class="controls">
-  <input
-    type="text"
-    id="searchBox"
-    placeholder="Search name, product/service or location…"
-    aria-label="Search directory"
-  >
+  <div class="controls">
+    <input id="search" placeholder="Search businesses or services">
+    <select id="locationFilter">
+      <option value="">All locations</option>
+    </select>
+    <select id="practiceFilter">
+      <option value="">All practices</option>
+    </select>
+  </div>
 
-  <select id="locationFilter" aria-label="Filter by location">
-    <option value="">All locations</option>
-  </select>
+  <div class="cards" id="cards"></div>
 
-  <select id="practiceFilter" aria-label="Filter by practices">
-    <option value="">All practices</option>
-  </select>
 </div>
 
-<div id="status" class="status">Loading directory…</div>
-<div id="cards" class="cards"></div>
-
 <script>
-/* ===== CONFIG ===== */
-
 const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=2076497318&single=true&output=csv";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?output=csv";
 
-/* ===== UTILITIES ===== */
+function splitTokens(str) {
+  if (!str) return [];
+  return str.split(/[,;/|]/).map(s => s.trim()).filter(Boolean);
+}
 
-function escapeHTML(s) {
-  return (s || "").replace(/[&<>"']/g, c =>
-    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c])
-  );
+function norm(s) {
+  return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function parseCSV(text) {
-  const rows = [];
-  let row = [], cell = "", inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i], n = text[i + 1];
-    if (c === '"') {
-      if (inQuotes && n === '"') { cell += '"'; i++; }
-      else { inQuotes = !inQuotes; }
-    } else if (c === ',' && !inQuotes) {
-      row.push(cell); cell = "";
-    } else if ((c === '\n' || c === '\r') && !inQuotes) {
-      if (cell || row.length) { row.push(cell); rows.push(row); }
-      row = []; cell = "";
-    } else {
-      cell += c;
-    }
-  }
-  if (cell || row.length) { row.push(cell); rows.push(row); }
-
-  const headers = rows.shift().map(h => h.trim());
-  return rows
-    .filter(r => r.some(v => v && v.trim()))
-    .map(r => {
+  const lines = text.split(/\r?\n/);
+  const headers = lines.shift().split(",");
+  return lines
+    .filter(l => l.trim())
+    .map(l => {
+      const cells = l.split(",");
       const obj = {};
-      headers.forEach((h, i) => obj[h] = (r[i] || "").trim());
+      headers.forEach((h, i) => obj[h.trim()] = (cells[i] || "").trim());
       return obj;
     });
 }
 
-/* ===== STATE ===== */
+const state = {
+  all: [],
+  filtered: []
+};
 
-let allData = [];
+function renderFilters() {
+  const locSet = new Set();
+  const pracSet = new Set();
 
-/* ===== RENDER ===== */
-
-function render(data) {
-  const cards = document.getElementById("cards");
-  const status = document.getElementById("status");
-
-  cards.innerHTML = "";
-
-  if (!data.length) {
-    status.textContent = "No matching entries.";
-    return;
-  }
-
-  data.forEach(r => {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-      <h3>${escapeHTML(r.Name)}</h3>
-      <div>${escapeHTML(r["Product / Service"] || r.Product || "")}</div>
-      ${r.Location ? `<div class="muted">${escapeHTML(r.Location)}</div>` : ""}
-    `;
-    cards.appendChild(card);
+  state.all.forEach(r => {
+    splitTokens(r.Location).forEach(l => locSet.add(l));
+    splitTokens(r.Practices).forEach(p => pracSet.add(p));
   });
 
-  status.textContent = "Showing " + data.length + " entries";
+  const locSel = document.getElementById("locationFilter");
+  [...locSet].sort().forEach(l => {
+    const o = document.createElement("option");
+    o.value = norm(l);
+    o.textContent = l;
+    locSel.appendChild(o);
+  });
+
+  const pracSel = document.getElementById("practiceFilter");
+  [...pracSet].sort().forEach(p => {
+    const o = document.createElement("option");
+    o.value = norm(p);
+    o.textContent = p;
+    pracSel.appendChild(o);
+  });
 }
 
-/* ===== FILTERING ===== */
-
 function applyFilters() {
-  const q = document.getElementById("searchBox").value.toLowerCase();
+  const q = document.getElementById("search").value.toLowerCase();
   const loc = document.getElementById("locationFilter").value;
   const prac = document.getElementById("practiceFilter").value;
 
-  const filtered = allData.filter(r => {
+  state.filtered = state.all.filter(r => {
     const textMatch =
       (r.Name || "").toLowerCase().includes(q) ||
-      (r["Product / Service"] || r.Product || "").toLowerCase().includes(q) ||
-      (r.Location || "").toLowerCase().includes(q);
+      (r.Product || "").toLowerCase().includes(q);
 
-    const locMatch = !loc || (r.Location || "") === loc;
+    const locMatch =
+      !loc ||
+      splitTokens(r.Location).map(norm).includes(loc);
 
     const pracMatch =
       !prac ||
-      (r.Practices || "")
-        .toLowerCase()
-        .split(/[,;]+/)
-        .map(s => s.trim())
-        .includes(prac);
+      splitTokens(r.Practices).map(norm).includes(prac);
 
     return textMatch && locMatch && pracMatch;
   });
 
-  render(filtered);
+  renderCards();
 }
 
-/* ===== LOAD DATA ===== */
+function renderCards() {
+  const wrap = document.getElementById("cards");
+  wrap.innerHTML = "";
 
-fetch(CSV_URL + "&_=" + Date.now())
-  .then(r => r.text())
-  .then(text => {
-    allData = parseCSV(text)
-      .filter(r => !r.Status || r.Status.toLowerCase() === "active");
+  if (!state.filtered.length) {
+    wrap.innerHTML = "<div class='muted'>No results found</div>";
+    return;
+  }
 
-    // Populate Location filter
-    const locations = [...new Set(
-      allData.map(r => r.Location).filter(Boolean)
-    )].sort();
+  state.filtered.forEach(r => {
+    const card = document.createElement("div");
+    card.className = "card";
 
-    const locSel = document.getElementById("locationFilter");
-    locations.forEach(l => {
-      const o = document.createElement("option");
-      o.value = l;
-      o.textContent = l;
-      locSel.appendChild(o);
-    });
-
-    // Populate Practices filter
-    const practices = [...new Set(
-      allData.flatMap(r =>
-        (r.Practices || "")
-          .split(/[,;]+/)
-          .map(s => s.trim().toLowerCase())
-          .filter(Boolean)
-      )
-    )].sort();
-
-    const pracSel = document.getElementById("practiceFilter");
-    practices.forEach(p => {
-      const o = document.createElement("option");
-      o.value = p;
-      o.textContent = p.charAt(0).toUpperCase() + p.slice(1);
-      pracSel.appendChild(o);
-    });
-
-    render(allData);
-  })
-  .catch(() => {
-    document.getElementById("status").textContent =
-      "Directory failed to load.";
+    card.innerHTML = `
+      <h3>${r.Name || ""}</h3>
+      <div class="muted">${r.Product || ""}</div>
+      <div class="muted">${r.Location || ""}</div>
+      <div class="tags">
+        ${splitTokens(r.Practices).map(p =>
+          `<span class="tag">${p}</span>`).join("")}
+      </div>
+    `;
+    wrap.appendChild(card);
   });
+}
 
-/* ===== EVENTS ===== */
+async function init() {
+  const res = await fetch(CSV_URL, { cache: "no-store" });
+  const text = await res.text();
+  state.all = parseCSV(text);
+  renderFilters();
+  applyFilters();
+  document.getElementById("slogan").textContent =
+    "Choose local. Reduce waste. Strengthen the Huon Valley.";
+}
 
-document.getElementById("searchBox").addEventListener("input", applyFilters);
+document.getElementById("search").addEventListener("input", applyFilters);
 document.getElementById("locationFilter").addEventListener("change", applyFilters);
 document.getElementById("practiceFilter").addEventListener("change", applyFilters);
+
+init();
 </script>
 
 </body>
