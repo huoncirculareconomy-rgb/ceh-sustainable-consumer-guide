@@ -1,21 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
 <title>CEH Sustainable Consumer Guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!--
-PURPOSE & FUNCTION
+Purpose & Function
 ------------------
-This page displays the CEH Sustainable Consumer Guide using data loaded
-from a specific Google Sheets tab published as CSV.
-
-Listings are shown as cards, sorted by most recent Date first.
-Users can search, filter by Location or Practice, and click Category
-or Practice pills to filter results.
-
-Designed to run reliably on GitHub Pages and when embedded in Google Sites.
+This page loads the CEH Sustainable Consumer Guide from a Google Sheets CSV,
+renders entries as cards, and allows filtering by search text, location,
+category, and practices. Categories (blue pills) and practices (green pills)
+are clickable filters. Data is sorted by Date (newest first). This version
+is designed to be stable for GitHub Pages and embedding in Google Sites.
 -->
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -23,31 +20,30 @@ Designed to run reliably on GitHub Pages and when embedded in Google Sites.
 <style>
 body {
   margin: 0;
-  font-family: system-ui, Arial, sans-serif;
-  background: #f7f5f2;
-  color: #1f2937;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: #f6f3ee;
+  color: #24323f;
 }
 
 .container {
   max-width: 1200px;
   margin: auto;
-  padding: 16px;
+  padding: 20px;
 }
 
 h1 {
-  color: #2e8b57;
+  color: #2f8f5b;
   margin-bottom: 4px;
 }
 
 .subtitle {
   font-style: italic;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
-/* Filters */
 .filters {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr auto;
+  grid-template-columns: 1fr 220px 220px auto;
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -55,24 +51,15 @@ h1 {
 .filters input,
 .filters select,
 .filters button {
-  width: 100%;
   padding: 8px 10px;
   font-size: 14px;
-  box-sizing: border-box;
 }
 
 .filters button {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
   cursor: pointer;
 }
 
-.filters button:hover {
-  background: #f1f5f9;
-}
-
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .filters {
     grid-template-columns: 1fr;
   }
@@ -80,231 +67,229 @@ h1 {
 
 .results-count {
   font-size: 13px;
-  color: #4b5563;
-  margin-bottom: 14px;
+  margin: 10px 0;
 }
 
-/* Cards */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 14px;
-}
-
-@media (max-width: 700px) {
-  .cards {
-    grid-template-columns: 1fr;
-  }
+  gap: 16px;
 }
 
 .card {
-  background: #f7f5f2;
-  border: 1px solid #d9d9d9;
+  background: #fbfaf8;
+  border: 1px solid #ddd;
   border-radius: 14px;
-  padding: 16px 18px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  padding: 16px;
 }
 
 .card h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 6px;
 }
 
 .description {
-  font-size: 14.5px;
-  line-height: 1.45;
-  color: #374151;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 8px;
 }
 
-/* Links */
-.card a {
-  font-size: 13px;
-  color: #1a73e8;
-  text-decoration: none;
-  word-break: break-word;
+.tag-row {
+  margin-top: 6px;
 }
 
-.card a:hover {
-  text-decoration: underline;
-}
-
-/* Category pills (blue) */
-.category-tag {
-  display: inline-block;
-  padding: 4px 10px;
-  font-size: 12px;
-  border-radius: 999px;
-  background: #e6f0ff;
-  color: #1a4fb3;
-  border: 1px solid #c7dcff;
-  margin: 2px 6px 2px 0;
-  cursor: pointer;
-}
-
-/* Practice pills (green) */
+.category-tag,
 .practice-tag {
   display: inline-block;
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 999px;
-  background: #e6f4ea;
-  color: #137333;
-  border: 1px solid #b7dfc2;
-  margin: 2px 6px 2px 0;
+  margin: 3px 4px 0 0;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.practice-tag:hover,
-.category-tag:hover {
-  opacity: 0.85;
+.category-tag {
+  background: #e6f0ff;
+  color: #2457c5;
+  border: 1px solid #bcd2ff;
+}
+
+.practice-tag {
+  background: #e7f5ea;
+  color: #1b7f4d;
+  border: 1px solid #bfe3cc;
+}
+
+.contact-block {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.contact-item {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+  word-break: break-word;
+}
+
+.contact-icon {
+  width: 16px;
+  opacity: 0.75;
 }
 </style>
 </head>
 
 <body>
 <div class="container">
+  <h1>CEH Sustainable Consumer Guide</h1>
+  <div class="subtitle">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
 
-<h1>CEH Sustainable Consumer Guide</h1>
-<div class="subtitle">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
+  <div class="filters">
+    <input id="searchInput" placeholder="Search businesses or services">
+    <select id="locationFilter"><option value="">All locations</option></select>
+    <select id="practiceFilter"><option value="">All practices</option></select>
+    <button id="resetBtn">Reset filters</button>
+  </div>
 
-<div class="filters">
-  <input id="searchInput" placeholder="Search businesses or services" />
-  <select id="locationFilter">
-    <option value="">All locations</option>
-  </select>
-  <select id="practiceFilter">
-    <option value="">All practices</option>
-  </select>
-  <button id="resetBtn">Reset filters</button>
-</div>
+  <div class="results-count" id="resultsCount"></div>
 
-<div class="results-count" id="resultsCount"></div>
-<div class="cards" id="cards"></div>
-
+  <div class="cards" id="cards"></div>
 </div>
 
 <script>
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
 
-let allRows = [];
-let activeCategory = "";
+let rows = [];
+let filtered = [];
 
-/* Load CSV */
+const searchInput = document.getElementById("searchInput");
+const locationFilter = document.getElementById("locationFilter");
+const practiceFilter = document.getElementById("practiceFilter");
+const cardsEl = document.getElementById("cards");
+const resultsCount = document.getElementById("resultsCount");
+
+function parseList(value) {
+  return (value || "")
+    .split(",")
+    .map(v => v.trim())
+    .filter(Boolean);
+}
+
 Papa.parse(CSV_URL, {
   download: true,
   header: true,
-  skipEmptyLines: true,
   complete: res => {
-    allRows = res.data
-      .filter(r => r.Status && r.Status.toLowerCase().trim() === "active")
-      .sort((a, b) => parseDate(b.Date) - parseDate(a.Date));
+    rows = res.data
+      .filter(r => r.Status?.toLowerCase() === "active")
+      .sort((a, b) => new Date(b.Date) - new Date(a.Date));
 
-    buildFilters();
-    render();
-  },
-  error: err => console.error("CSV error:", err)
+    populateFilters();
+    applyFilters();
+  }
 });
 
-function parseDate(v) {
-  if (!v) return 0;
-  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return new Date(v).getTime() || 0;
-  if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(v)) {
-    const [d, m, y] = v.split(/[\/-]/);
-    return new Date(y, m - 1, d).getTime() || 0;
-  }
-  const t = Date.parse(v);
-  return isNaN(t) ? 0 : t;
-}
+function populateFilters() {
+  const locations = new Set();
+  const practices = new Set();
 
-function buildFilters() {
-  const locs = new Set();
-  const pracs = new Set();
-
-  allRows.forEach(r => {
-    (r.Location || "").split(",").forEach(l => locs.add(l.trim()));
-    (r.Practices || "").split(",").forEach(p => pracs.add(p.trim()));
+  rows.forEach(r => {
+    parseList(r.Location).forEach(v => locations.add(v));
+    parseList(r.Practices).forEach(v => practices.add(v));
   });
 
-  [...locs].filter(Boolean).sort().forEach(l =>
+  [...locations].sort().forEach(l =>
     locationFilter.add(new Option(l, l))
   );
-  [...pracs].filter(Boolean).sort().forEach(p =>
+
+  [...practices].sort().forEach(p =>
     practiceFilter.add(new Option(p, p))
   );
 }
 
-function render() {
-  const q = searchInput.value.toLowerCase();
+function applyFilters() {
+  const search = searchInput.value.toLowerCase();
   const loc = locationFilter.value;
   const prac = practiceFilter.value;
 
-  const filtered = allRows.filter(r => {
-    if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
-    if (loc && !(r.Location || "").includes(loc)) return false;
-    if (prac && !(r.Practices || "").includes(prac)) return false;
-    if (activeCategory && !(r.Category || "").includes(activeCategory)) return false;
+  filtered = rows.filter(r => {
+    const text =
+      `${r.Name} ${r["Product/Service"]} ${r.Notes}`.toLowerCase();
+
+    if (search && !text.includes(search)) return false;
+    if (loc && !parseList(r.Location).includes(loc)) return false;
+    if (prac && !parseList(r.Practices).includes(prac)) return false;
     return true;
   });
 
-  cards.innerHTML = "";
+  render();
+}
+
+function render() {
+  cardsEl.innerHTML = "";
   resultsCount.textContent =
-    `Showing ${filtered.length} of ${allRows.length} results`;
+    `Showing ${filtered.length} of ${rows.length} results`;
 
   filtered.forEach(r => {
     const card = document.createElement("div");
     card.className = "card";
 
     card.innerHTML = `
-      <h3>${r.Name || ""}</h3>
+      <h3>${r.Name}</h3>
       <div class="description">${r["Product/Service"] || ""}</div>
 
-      <div>
-        ${(r.Category || "").split(",").map(c =>
-          `<span class="category-tag" onclick="setCategory('${c.trim()}')">${c.trim()}</span>`
-        ).join("")}
+      <div class="tag-row">
+        ${parseList(r.Category)
+          .map(c => `<span class="category-tag" data-cat="${c}">${c}</span>`)
+          .join("")}
       </div>
 
-      <div>
-        ${(r.Practices || "").split(",").map(p =>
-          `<span class="practice-tag" onclick="setPractice('${p.trim()}')">${p.trim()}</span>`
-        ).join("")}
+      <div class="tag-row">
+        ${parseList(r.Practices)
+          .map(p => `<span class="practice-tag" data-practice="${p}">${p}</span>`)
+          .join("")}
       </div>
 
-      ${r.Website ? `<a href="${r.Website}" target="_blank">${r.Website}</a>` : ""}
+      <div class="contact-block">
+        ${r.Website ? `<div class="contact-item"><span class="contact-icon">🔗</span><a href="${r.Website}" target="_blank">${r.Website}</a></div>` : ""}
+        ${r.Email ? `<div class="contact-item"><span class="contact-icon">✉️</span><a href="mailto:${r.Email}">${r.Email}</a></div>` : ""}
+        ${r.Phone ? `<div class="contact-item"><span class="contact-icon">📞</span><a href="tel:${r.Phone.replace(/\s+/g,"")}">${r.Phone}</a></div>` : ""}
+        ${r.Address ? `<div class="contact-item"><span class="contact-icon">📍</span>${r.Address}</div>` : ""}
+      </div>
     `;
 
-    cards.appendChild(card);
+    cardsEl.appendChild(card);
   });
+
+  document.querySelectorAll(".category-tag").forEach(el =>
+    el.onclick = () => {
+      practiceFilter.value = "";
+      searchInput.value = "";
+      locationFilter.value = "";
+      applyFilters();
+      searchInput.value = el.dataset.cat;
+      applyFilters();
+    }
+  );
+
+  document.querySelectorAll(".practice-tag").forEach(el =>
+    el.onclick = () => {
+      practiceFilter.value = el.dataset.practice;
+      applyFilters();
+    }
+  );
 }
 
-function setPractice(p) {
-  practiceFilter.value = p;
-  render();
-}
+searchInput.oninput = applyFilters;
+locationFilter.onchange = applyFilters;
+practiceFilter.onchange = applyFilters;
 
-function setCategory(c) {
-  activeCategory = c;
-  render();
-}
-
-searchInput.oninput = render;
-locationFilter.onchange = render;
-practiceFilter.onchange = () => {
-  activeCategory = "";
-  render();
-};
-
-resetBtn.onclick = () => {
+document.getElementById("resetBtn").onclick = () => {
   searchInput.value = "";
   locationFilter.value = "";
   practiceFilter.value = "";
-  activeCategory = "";
-  render();
+  applyFilters();
 };
 </script>
 </body>
