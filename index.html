@@ -6,21 +6,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!--
-PURPOSE & FUNCTION (FOR VOLUNTEERS)
+====================================================================
+CEH SUSTAINABLE CONSUMER GUIDE — PURPOSE & EXPLANATION (FOR VOLUNTEERS)
+====================================================================
 
-This page displays the CEH Sustainable Consumer Guide using data loaded
-from a Google Sheet published as CSV.
+What this page does
+------------------
+• Loads the CEH Sustainable Consumer Guide from a Google Sheet (CSV)
+• Displays entries as cards, newest first
+• Allows filtering by:
+    - Search text
+    - Location (dropdown)
+    - Practices (dropdown)
+    - Category (blue pills)
+    - Practices (green pills)
+• Provides a Reset Filters button
+• Shows “Showing X of Y results”
 
-Users can:
-- Search listings
-- Filter by Location and Practices (dropdowns)
-- Filter by Category (blue pills) and Practices (green pills)
-- Reset all filters
+Why canonical categories & practices exist
+------------------------------------------
+As multiple volunteers contribute data, small wording differences
+(e.g. "refill", "Refills", "BYO-containers") can fragment filters.
+This script standardises those values internally so the interface
+remains clean and consistent, without restricting spreadsheet entry.
 
-Categories and Practices are standardised (canonicalised) in code to
-prevent duplicates caused by inconsistent wording in the spreadsheet.
+Why website links are split
+---------------------------
+Some spreadsheet cells contain multiple website/social links.
+These are now automatically separated and displayed individually
+with appropriate icons (website, Facebook, Instagram, etc.).
 
-The current state is stable and suitable for publication via Google Sites.
+Current status
+--------------
+✔ Data loads correctly from Google Sheets
+✔ Filters behave correctly and independently
+✔ Cards closely match the original CEH styling
+✔ Safe for publication via GitHub Pages and Google Sites
+
+====================================================================
 -->
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -64,7 +87,6 @@ h1 {
   font-size: 14px;
 }
 
-/* Reset button (blue) */
 #resetBtn {
   background: #1a73e8;
   color: #ffffff;
@@ -137,7 +159,7 @@ h1 {
   border: 1px solid #bfe3cc;
 }
 
-/* Contact block */
+/* Contact info */
 .contact-block {
   margin-top: 10px;
   font-size: 13px;
@@ -208,6 +230,7 @@ const practiceFilter = document.getElementById("practiceFilter");
 const cardsEl = document.getElementById("cards");
 const resultsCount = document.getElementById("resultsCount");
 
+/* Helpers */
 function parseList(value) {
   return (value || "")
     .split(",")
@@ -232,6 +255,23 @@ function parsePractices(value) {
   );
 }
 
+/* Split multiple website / social links */
+function splitLinks(value) {
+  if (!value) return [];
+  return value
+    .split(/\n|,|\s+/)
+    .map(v => v.trim())
+    .filter(v => v.startsWith("http"));
+}
+
+function linkIcon(url) {
+  if (url.includes("facebook.com")) return "📘";
+  if (url.includes("instagram.com")) return "📸";
+  if (url.includes("twitter.com") || url.includes("x.com")) return "🐦";
+  return "🔗";
+}
+
+/* Load data */
 Papa.parse(CSV_URL, {
   download: true,
   header: true,
@@ -263,6 +303,7 @@ function populateFilters() {
   );
 }
 
+/* Filtering */
 function applyFilters() {
   const search = searchInput.value.toLowerCase();
   const loc = locationFilter.value;
@@ -283,6 +324,7 @@ function applyFilters() {
   render();
 }
 
+/* Render cards */
 function render() {
   cardsEl.innerHTML = "";
   resultsCount.textContent =
@@ -309,10 +351,33 @@ function render() {
       </div>
 
       <div class="contact-block">
-        ${r.Website ? `<div class="contact-item"><span class="contact-icon">🔗</span><a href="${r.Website}" target="_blank">${r.Website}</a></div>` : ""}
-        ${r.Email ? `<div class="contact-item"><span class="contact-icon">✉️</span><a href="mailto:${r.Email}">${r.Email}</a></div>` : ""}
-        ${r.Phone ? `<div class="contact-item"><span class="contact-icon">📞</span><a href="tel:${r.Phone.replace(/\s+/g,"")}">${r.Phone}</a></div>` : ""}
-        ${r.Address ? `<div class="contact-item"><span class="contact-icon">📍</span>${r.Address}</div>` : ""}
+        ${splitLinks(r.Website).map(url => `
+          <div class="contact-item">
+            <span class="contact-icon">${linkIcon(url)}</span>
+            <a href="${url}" target="_blank">${url}</a>
+          </div>
+        `).join("")}
+
+        ${r.Email ? `
+          <div class="contact-item">
+            <span class="contact-icon">✉️</span>
+            <a href="mailto:${r.Email}">${r.Email}</a>
+          </div>
+        ` : ""}
+
+        ${r.Phone ? `
+          <div class="contact-item">
+            <span class="contact-icon">📞</span>
+            <a href="tel:${r.Phone.replace(/\s+/g,"")}">${r.Phone}</a>
+          </div>
+        ` : ""}
+
+        ${r.Address ? `
+          <div class="contact-item">
+            <span class="contact-icon">📍</span>
+            ${r.Address}
+          </div>
+        ` : ""}
       </div>
     `;
 
@@ -334,6 +399,7 @@ function render() {
   );
 }
 
+/* Events */
 searchInput.oninput = applyFilters;
 locationFilter.onchange = applyFilters;
 practiceFilter.onchange = () => {
