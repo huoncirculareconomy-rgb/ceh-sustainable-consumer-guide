@@ -5,18 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CEH Sustainable Consumer Guide</title>
 
-<!-- CSV parser (REQUIRED – handles commas correctly) -->
+<!--
+PURPOSE & FUNCTION
+------------------
+This page displays the CEH Sustainable Consumer Guide by loading data
+directly from a published Google Sheets tab (as CSV). It renders the
+data as searchable, filterable cards, sorted by most recent date first.
+The page is designed to run on GitHub Pages and be safely embedded in
+Google Sites. All logic is client-side and robust against commas and
+formatting in spreadsheet cells.
+-->
+
+<!-- Robust CSV parser -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-/* =========================================================
-   PURPOSE & FUNCTION
-   ---------------------------------------------------------
-   This page loads the CEH Sustainable Consumer Guide from a
-   CSV file and displays it as searchable, filterable cards.
-   It is designed for GitHub Pages and Google Sites embeds.
-   ========================================================= */
-
+/* ===== Base ===== */
 body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -30,6 +34,7 @@ body {
   padding: 16px;
 }
 
+/* ===== Header ===== */
 h1 {
   color: #2e8b57;
   margin-bottom: 4px;
@@ -40,7 +45,7 @@ h1 {
   margin-bottom: 16px;
 }
 
-/* ---------- Filters ---------- */
+/* ===== Filters ===== */
 .filters {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr auto;
@@ -74,14 +79,14 @@ h1 {
   }
 }
 
-/* ---------- Results count ---------- */
+/* ===== Results count ===== */
 .results-count {
   font-size: 13px;
   margin: 8px 0 14px;
   color: #4b5563;
 }
 
-/* ---------- Cards ---------- */
+/* ===== Cards grid ===== */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -94,6 +99,7 @@ h1 {
   }
 }
 
+/* ===== Card ===== */
 .card {
   background: #f7f5f2;
   border: 1px solid #d9d9d9;
@@ -111,12 +117,14 @@ h1 {
   font-weight: 600;
 }
 
+/* ===== Text ===== */
 .description {
   font-size: 14.5px;
   line-height: 1.45;
   color: #374151;
 }
 
+/* ===== Links ===== */
 .card a {
   color: #1a73e8;
   text-decoration: none;
@@ -127,13 +135,13 @@ h1 {
   text-decoration: underline;
 }
 
-/* ---------- Category ---------- */
+/* ===== Category ===== */
 .category-link {
   font-size: 13px;
   color: #1a73e8;
 }
 
-/* ---------- Location tag ---------- */
+/* ===== Location tag ===== */
 .location-tag {
   display: inline-block;
   padding: 4px 10px;
@@ -145,7 +153,7 @@ h1 {
   margin: 2px 6px 2px 0;
 }
 
-/* ---------- Practice tag ---------- */
+/* ===== Practice tag ===== */
 .practice-tag {
   display: inline-block;
   padding: 4px 10px;
@@ -187,20 +195,26 @@ h1 {
 </div>
 
 <script>
+/* =========================
+   DATA SOURCE (LOCKED)
+   ========================= */
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
 
-
 let allRows = [];
 
+/* =========================
+   LOAD CSV (ROBUST)
+   ========================= */
 Papa.parse(CSV_URL, {
   download: true,
   header: true,
   skipEmptyLines: true,
   complete: function (results) {
-    allRows = results.data.filter(
-      r => r.Status && r.Status.toLowerCase() === "active"
-    );
+    allRows = results.data
+      .filter(r => r.Status && r.Status.trim().toLowerCase() === "active")
+      .sort((a, b) => parseDate(b.Date) - parseDate(a.Date)); // newest first
+
     buildFilters();
     render();
   },
@@ -209,13 +223,37 @@ Papa.parse(CSV_URL, {
   }
 });
 
+/* =========================
+   DATE PARSER (AU / ISO SAFE)
+   ========================= */
+function parseDate(value) {
+  if (!value) return 0;
+
+  // ISO yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return new Date(value).getTime() || 0;
+  }
+
+  // dd/mm/yyyy or dd-mm-yyyy
+  if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(value)) {
+    const [d, m, y] = value.split(/[\/-]/);
+    return new Date(y, m - 1, d).getTime() || 0;
+  }
+
+  const t = Date.parse(value);
+  return isNaN(t) ? 0 : t;
+}
+
+/* =========================
+   BUILD FILTER OPTIONS
+   ========================= */
 function buildFilters() {
   const locSet = new Set();
   const pracSet = new Set();
 
   allRows.forEach(r => {
-    r.Location?.split(";").forEach(l => locSet.add(l.trim()));
-    r.Practices?.split(";").forEach(p => pracSet.add(p.trim()));
+    (r.Location || "").split(";").forEach(l => locSet.add(l.trim()));
+    (r.Practices || "").split(";").forEach(p => pracSet.add(p.trim()));
   });
 
   [...locSet].filter(Boolean).sort().forEach(l =>
@@ -227,6 +265,9 @@ function buildFilters() {
   );
 }
 
+/* =========================
+   RENDER
+   ========================= */
 function render() {
   const q = searchInput.value.toLowerCase();
   const loc = locationFilter.value;
@@ -234,8 +275,8 @@ function render() {
 
   const filtered = allRows.filter(r => {
     if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
-    if (loc && !r.Location.includes(loc)) return false;
-    if (prac && !r.Practices.includes(prac)) return false;
+    if (loc && !(r.Location || "").includes(loc)) return false;
+    if (prac && !(r.Practices || "").includes(prac)) return false;
     return true;
   });
 
@@ -248,7 +289,7 @@ function render() {
     card.className = "card";
 
     card.innerHTML = `
-      <h3>${r.Name}</h3>
+      <h3>${r.Name || ""}</h3>
       <div class="description">${r["Product/Service"] || ""}</div>
       ${r.Category ? `<div class="category-link">${r.Category}</div>` : ""}
       <div>
@@ -268,6 +309,9 @@ function render() {
   });
 }
 
+/* =========================
+   EVENTS
+   ========================= */
 searchInput.oninput = render;
 locationFilter.onchange = render;
 practiceFilter.onchange = render;
@@ -286,4 +330,3 @@ function setPractice(p) {
 </script>
 </body>
 </html>
-
