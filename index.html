@@ -6,10 +6,9 @@
 
 <!--
 PURPOSE & FUNCTION
-This page implements a minimal standalone version of the CEH Sustainable Consumer Guide.
-It loads directory data from a published Google Sheets CSV, parses it client-side,
-and renders simple cards. This confirms that GitHub Pages, JavaScript execution,
-and the data source are all working reliably.
+This page implements the CEH Sustainable Consumer Guide as a standalone site.
+It loads directory data from a published Google Sheets CSV, renders responsive
+cards, and provides a client-side text search that filters entries in real time.
 -->
 
 <title>CEH Sustainable Consumer Guide</title>
@@ -32,8 +31,22 @@ and the data source are all working reliably.
     color: #2e8b57;
     font-weight: 600;
   }
-  .status {
+  .controls {
     padding: 12px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: center;
+  }
+  .controls input {
+    width: 100%;
+    max-width: 420px;
+    padding: 10px 12px;
+    font-size: 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+  }
+  .status {
+    padding: 10px;
     font-style: italic;
     color: #555;
     text-align: center;
@@ -74,22 +87,30 @@ and the data source are all working reliably.
   <h1>CEH Sustainable Consumer Guide</h1>
 </header>
 
+<div class="controls">
+  <input
+    type="text"
+    id="searchBox"
+    placeholder="Search name, product/service or location…"
+    aria-label="Search directory"
+  >
+</div>
+
 <div id="status" class="status">Loading directory…</div>
 <div id="cards" class="cards"></div>
 
 <script>
 /* ===== CONFIGURATION ===== */
 
-// Published CSV URL (directory sheet)
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=2076497318&single=true&output=csv";
 
 /* ===== UTILITIES ===== */
 
 function escapeHTML(s) {
-  return (s || "").replace(/[&<>"']/g, c => (
-    { "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c]
-  ));
+  return (s || "").replace(/[&<>"']/g, c =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c])
+  );
 }
 
 function parseCSV(text) {
@@ -138,39 +159,59 @@ function parseCSV(text) {
 
 /* ===== LOAD & RENDER ===== */
 
+let allData = [];
+
+function render(data) {
+  const cards = document.getElementById("cards");
+  const status = document.getElementById("status");
+
+  cards.innerHTML = "";
+
+  if (!data.length) {
+    status.textContent = "No matching entries.";
+    return;
+  }
+
+  data.forEach(r => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <h3>${escapeHTML(r.Name)}</h3>
+      <div>${escapeHTML(r["Product / Service"] || r.Product || "")}</div>
+      ${r.Location ? `<div class="muted">${escapeHTML(r.Location)}</div>` : ""}
+    `;
+    cards.appendChild(card);
+  });
+
+  status.textContent = "Showing " + data.length + " entries";
+}
+
 fetch(CSV_URL + "&_=" + Date.now())
   .then(r => r.text())
   .then(text => {
-    const data = parseCSV(text)
+    allData = parseCSV(text)
       .filter(r => !r.Status || r.Status.toLowerCase() === "active");
 
-    const cards = document.getElementById("cards");
-    const status = document.getElementById("status");
-
-    cards.innerHTML = "";
-
-    if (!data.length) {
-      status.textContent = "No entries found.";
-      return;
-    }
-
-    data.forEach(r => {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `
-        <h3>${escapeHTML(r.Name)}</h3>
-        <div>${escapeHTML(r["Product / Service"] || r.Product || "")}</div>
-        ${r.Location ? `<div class="muted">${escapeHTML(r.Location)}</div>` : ""}
-      `;
-      cards.appendChild(card);
-    });
-
-    status.textContent = "Showing " + data.length + " entries";
+    render(allData);
   })
-  .catch(err => {
+  .catch(() => {
     document.getElementById("status").textContent =
       "Directory failed to load.";
   });
+
+/* ===== SEARCH ===== */
+
+document.getElementById("searchBox").addEventListener("input", e => {
+  const q = e.target.value.toLowerCase();
+
+  const filtered = allData.filter(r =>
+    (r.Name || "").toLowerCase().includes(q) ||
+    (r["Product / Service"] || r.Product || "").toLowerCase().includes(q) ||
+    (r.Location || "").toLowerCase().includes(q)
+  );
+
+  render(filtered);
+});
 </script>
 
 </body>
