@@ -1,239 +1,448 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>CEH Sustainable Consumer Guide</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
+<!-- PapaParse for CSV parsing -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-body {
-  margin: 0;
-  font-family: system-ui, Arial, sans-serif;
-  background: #f6f3ee;
-  color: #24323f;
-}
+  :root{
+    --bg:#f6f3ee;
+    --card:#fbfaf8;
+    --border:#ddd;
+    --text:#24323f;
+    --muted:#666;
+    --title:#2f8f5b;
 
-.container {
-  max-width: 1200px;
-  margin: auto;
-  padding: 16px;
-}
+    --blue-bg:#e6f0ff;
+    --blue-border:#bcd2ff;
+    --blue-text:#2457c5;
 
-h1 {
-  color: #2f8f5b;
-  margin-bottom: 4px;
-}
+    --green-bg:#e7f5ea;
+    --green-border:#bfe3cc;
+    --green-text:#1b7f4d;
 
-/* Rotating slogan */
-#slogan {
-  font-style: italic;
-  margin-bottom: 16px;
-  min-height: 1.4em;
-  color: #444;
-}
-
-#slogan a {
-  color: inherit;
-  text-decoration: none;
-}
-
-#slogan a:hover {
-  text-decoration: underline;
-}
-
-/* Filters */
-.filters {
-  display: grid;
-  grid-template-columns: 1fr 220px 220px auto;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.filters input,
-.filters select,
-.filters button {
-  padding: 8px 10px;
-  font-size: 14px;
-}
-
-#resetBtn {
-  background: #1a73e8;
-  color: #fff;
-  border: 1px solid #1a73e8;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-#resetBtn:hover {
-  background: #1558b0;
-}
-
-@media (max-width: 800px) {
-  .filters {
-    grid-template-columns: 1fr;
+    --btn-blue:#1a73e8;
+    --btn-blue-hover:#1558b0;
   }
-}
 
-.results-count {
-  font-size: 13px;
-  margin: 8px 0 12px;
-}
+  body{
+    margin:0;
+    font-family: system-ui, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
 
-/* Cards */
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-}
+  .container{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 18px 14px 28px;
+  }
 
-.card {
-  background: #fbfaf8;
-  border: 1px solid #ddd;
-  border-radius: 14px;
-  padding: 14px;
-}
+  h1{
+    margin: 0 0 4px 0;
+    font-size: 40px;
+    line-height: 1.1;
+    color: var(--title);
+    font-weight: 700;
+  }
 
-.card h3 {
-  margin: 0 0 6px 0;
-  font-size: 16px;
-}
+  /* Rotating slogan */
+  #slogan{
+    font-style: italic;
+    color: #444;
+    margin: 6px 0 14px;
+    min-height: 1.4em;
+  }
+  #slogan a{
+    color: inherit;
+    text-decoration: none;
+  }
+  #slogan a:hover{ text-decoration: underline; }
 
-.description {
-  font-size: 14px;
-  line-height: 1.45;
-  margin-bottom: 8px;
-}
+  /* Filters */
+  .filters{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap: wrap;
+    margin: 10px 0 8px;
+  }
 
-/* Pills */
-.category-tag,
-.practice-tag {
-  display: inline-block;
-  padding: 4px 10px;
-  font-size: 12px;
-  border-radius: 999px;
-  margin: 3px 4px 0 0;
-  cursor: pointer;
-}
+  .filters input,
+  .filters select{
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid #777;
+    background: #fff;
+    height: 42px;
+    box-sizing: border-box;
+  }
 
-.category-tag {
-  background: #e6f0ff;
-  color: #2457c5;
-  border: 1px solid #bcd2ff;
-}
+  /* Make search take remaining space on desktop */
+  #searchInput{
+    flex: 1 1 420px;
+    min-width: 220px;
+  }
+  #locationFilter, #practiceFilter{
+    flex: 0 0 220px;
+    min-width: 180px;
+  }
 
-.practice-tag {
-  background: #e7f5ea;
-  color: #1b7f4d;
-  border: 1px solid #bfe3cc;
-}
+  #resetBtn{
+    flex: 0 0 auto;
+    height: 42px;
+    padding: 0 14px;
+    border-radius: 6px;
+    border: 1px solid var(--btn-blue);
+    background: var(--btn-blue);
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  #resetBtn:hover{
+    background: var(--btn-blue-hover);
+    border-color: var(--btn-blue-hover);
+  }
 
-/* Contact */
-.contact {
-  font-size: 13px;
-  margin-top: 8px;
-}
+  /* Mobile: stack nicely */
+  @media (max-width: 800px){
+    .filters{ gap: 10px; }
+    #searchInput, #locationFilter, #practiceFilter, #resetBtn{
+      flex: 1 1 100%;
+      width: 100%;
+    }
+  }
 
-.contact-item {
-  display: flex;
-  gap: 6px;
-  margin-top: 3px;
-}
+  .results-count{
+    font-size: 13px;
+    color: #333;
+    margin: 8px 0 14px;
+  }
 
-.contact-item a {
-  color: #1a73e8;
-  text-decoration: none;
-  font-size: 13px;
-  word-break: break-word;
-}
+  /* Cards grid */
+  .cards{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
 
-.contact-item a:hover {
-  text-decoration: underline;
-}
+  .card{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+  }
 
-/* Notes */
-.notes {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid #eee;
-  color: #777;
-  font-style: italic;
-  font-size: 13px;
-}
+  .card h3{
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 700;
+  }
 
-/* Footer */
-.footer {
-  margin-top: 24px;
-  font-size: 12px;
-  color: #666;
-  text-align: center;
-}
+  .desc{
+    font-size: 14px;
+    line-height: 1.45;
+    margin: 0 0 10px 0;
+    white-space: pre-wrap;
+  }
+
+  /* Pills */
+  .pill{
+    display:inline-block;
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 999px;
+    margin: 2px 6px 2px 0;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .pill.category{
+    background: var(--blue-bg);
+    color: var(--blue-text);
+    border: 1px solid var(--blue-border);
+  }
+  .pill.practice{
+    background: var(--green-bg);
+    color: var(--green-text);
+    border: 1px solid var(--green-border);
+  }
+
+  .pill:hover{ filter: brightness(0.98); }
+
+  /* Links & contact area */
+  .contact{
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .contact a{
+    color: #1a73e8;
+    text-decoration: none;
+    font-size: 13px; /* smaller hyperlinks */
+    word-break: break-word;
+  }
+  .contact a:hover{ text-decoration: underline; }
+
+  .contact-row{
+    display:flex;
+    align-items:flex-start;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .icon{
+    width: 16px;
+    flex: 0 0 16px;
+    line-height: 1.2;
+    opacity: 0.8;
+  }
+
+  /* Notes */
+  .notes{
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+    color: #777;
+    font-style: italic;
+    font-size: 13px;
+    white-space: pre-wrap;
+  }
+
+  /* Footer */
+  .footer{
+    margin-top: 22px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Small error banner */
+  .error{
+    margin: 12px 0;
+    padding: 10px 12px;
+    border: 1px solid #e08a8a;
+    background: #fff0f0;
+    color: #8a1f1f;
+    border-radius: 10px;
+    display:none;
+  }
 </style>
 </head>
 
 <body>
-<div class="container">
+  <div class="container">
+    <h1>CEH Sustainable Consumer Guide</h1>
+    <div id="slogan">Loading…</div>
 
-  <h1>CEH Sustainable Consumer Guide</h1>
-  <div id="slogan">Loading…</div>
+    <div class="filters">
+      <input id="searchInput" placeholder="Search name, product, category or practice…" />
+      <select id="locationFilter">
+        <option value="">All locations</option>
+      </select>
+      <select id="practiceFilter">
+        <option value="">All practices</option>
+      </select>
+      <button id="resetBtn" type="button">Reset filters</button>
+    </div>
 
-  <div class="filters">
-    <input id="searchInput" placeholder="Search name, product, category or practice…">
-    <select id="locationFilter"><option value="">All locations</option></select>
-    <select id="practiceFilter"><option value="">All practices</option></select>
-    <button id="resetBtn">Reset filters</button>
+    <div class="results-count" id="resultsCount"></div>
+    <div class="error" id="errorBox"></div>
+    <div class="cards" id="cards"></div>
+
+    <div class="footer" id="lastUpdated"></div>
   </div>
 
-  <div class="results-count" id="resultsCount"></div>
-  <div class="cards" id="cards"></div>
-
-  <div class="footer" id="lastUpdated"></div>
-
-</div>
-
 <script>
+/**
+ * PURPOSE & FUNCTION (Volunteer-friendly):
+ * This page loads the Sustainable Consumer Guide data directly from a Google Sheet (as a CSV export),
+ * then renders it as searchable/filterable “cards” with clickable Category and Practice tags.
+ * It also loads rotating slogans from a separate sheet tab (rows 3–16), so volunteers can update
+ * slogans in the spreadsheet without changing code. The page is static and safe for GitHub Pages.
+ */
+
 /* ======================
    CONFIG
 ====================== */
-const DATA_CSV =
-  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
+const SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
+const DATA_GID = "2076497318";     // main data tab
+const SLOGAN_GID = "435440157";   // slogans tab
 
-const SLOGAN_CSV =
-  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=435440157";
+const DATA_CSV_URL =
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${DATA_GID}`;
+
+const SLOGAN_CSV_URL =
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SLOGAN_GID}`;
 
 /* ======================
-   SLOGANS
+   STATE
 ====================== */
+let allRows = [];
+let filteredRows = [];
+
+let selectedCategory = ""; // category filter via blue pills
+let selectedPractice = "";
+let selectedLocation = "";
+let searchText = "";
+
+/* Slogans */
 let slogans = [];
 let sloganIndex = 0;
 let sloganTimer = null;
 
-function loadSlogans() {
-  Papa.parse(SLOGAN_CSV, {
-    download: true,
-    header: false,
-    complete: res => {
-      slogans = res.data
-        .map(r => ({
-          text: r[0]?.trim(),
-          url: r[1]?.trim(),
-          seconds: parseInt(r[2], 10) || 5
-        }))
-        .filter(s => s.text);
+/* ======================
+   HELPERS
+====================== */
+function showError(msg){
+  const el = document.getElementById("errorBox");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+function clearError(){
+  const el = document.getElementById("errorBox");
+  el.textContent = "";
+  el.style.display = "none";
+}
 
-      if (slogans.length) rotateSlogan();
+function norm(s){
+  return (s ?? "").toString().trim();
+}
+
+function splitCommaList(value){
+  // Split on commas, trim, drop empties, de-duplicate (case-insensitive)
+  const parts = norm(value)
+    .split(",")
+    .map(x => x.trim())
+    .filter(Boolean);
+
+  const seen = new Set();
+  const out = [];
+  for(const p of parts){
+    const key = p.toLowerCase();
+    if(!seen.has(key)){
+      seen.add(key);
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+function extractUrls(mixedText){
+  // Extract http(s) or www.* from mixed text and return array of normalized URLs.
+  // Ignores any non-URL text.
+  const text = norm(mixedText);
+  if(!text) return [];
+
+  const regex = /\b(https?:\/\/[^\s,]+|www\.[^\s,]+)\b/gi;
+  const matches = text.match(regex) || [];
+  const urls = matches.map(u => u.startsWith("http") ? u : `https://${u}`);
+  // De-dupe
+  return Array.from(new Set(urls));
+}
+
+function parseDateForSort(dateStr){
+  // Expecting that Date column may be like YYYY-MM-DD or DD/MM/YYYY or other.
+  // We try Date.parse first, then fallback for DD/MM/YYYY.
+  const s = norm(dateStr);
+  if(!s) return 0;
+  let t = Date.parse(s);
+  if(!Number.isNaN(t)) return t;
+
+  // Try DD/MM/YYYY
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m){
+    const dd = parseInt(m[1],10);
+    const mm = parseInt(m[2],10);
+    const yy = parseInt(m[3],10);
+    const iso = `${yy}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
+    t = Date.parse(iso);
+    return Number.isNaN(t) ? 0 : t;
+  }
+  return 0;
+}
+
+function googleMapsLink(address, geolocation){
+  // Prefer geolocation if it looks like "lat,lng"
+  const geo = norm(geolocation);
+  const addr = norm(address);
+
+  if(geo && /-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?/.test(geo)){
+    const q = encodeURIComponent(geo.replace(/\s+/g,""));
+    return `https://www.google.com/maps/search/?api=1&query=${q}`;
+  }
+  if(addr){
+    const q = encodeURIComponent(addr);
+    return `https://www.google.com/maps/search/?api=1&query=${q}`;
+  }
+  return "";
+}
+
+function setLastUpdatedFromData(rows){
+  // Use the newest parsed Date value (after sorting) if possible; otherwise use "today".
+  const dates = rows
+    .map(r => parseDateForSort(r.Date))
+    .filter(t => t > 0);
+
+  const footer = document.getElementById("lastUpdated");
+  if(!dates.length){
+    footer.textContent = "Data last updated: (date not available)";
+    return;
+  }
+  const maxT = Math.max(...dates);
+  const d = new Date(maxT);
+  footer.textContent = `Data last updated: ${d.toLocaleDateString(undefined, {year:"numeric", month:"short", day:"numeric"})}`;
+}
+
+/* ======================
+   SLOGANS (Rows 3–16)
+====================== */
+function loadSlogans(){
+  Papa.parse(SLOGAN_CSV_URL, {
+    download: true,
+    skipEmptyLines: true,
+    complete: (res) => {
+      // Rows are 1-based in Sheets; we want 3–16 => indices 2..15 inclusive
+      const rows = (res.data || []).slice(2, 16);
+
+      slogans = rows
+        .map(r => ({
+          text: norm(r[0]),
+          url: norm(r[1]),
+          seconds: parseInt(r[2], 10)
+        }))
+        .filter(s => s.text)
+        .map(s => ({
+          text: s.text,
+          url: s.url,
+          seconds: (Number.isFinite(s.seconds) && s.seconds > 0) ? s.seconds : 5
+        }));
+
+      if(!slogans.length){
+        document.getElementById("slogan").textContent = "";
+        return;
+      }
+      rotateSlogan();
+    },
+    error: () => {
+      document.getElementById("slogan").textContent = "";
     }
   });
 }
 
-function rotateSlogan() {
-  const s = slogans[sloganIndex];
+function rotateSlogan(){
   const el = document.getElementById("slogan");
+  const s = slogans[sloganIndex];
 
-  el.innerHTML = s.url
-    ? `<a href="${s.url}" target="_blank">${s.text}</a>`
-    : s.text;
+  if(s.url){
+    el.innerHTML = `<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.text)}</a>`;
+  } else {
+    el.textContent = s.text;
+  }
 
   clearTimeout(sloganTimer);
   sloganTimer = setTimeout(() => {
@@ -242,10 +451,290 @@ function rotateSlogan() {
   }, s.seconds * 1000);
 }
 
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, (c) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
 /* ======================
-   START
+   LOAD DATA + RENDER
+====================== */
+function loadData(){
+  clearError();
+
+  Papa.parse(DATA_CSV_URL, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: (res) => {
+      const rows = res.data || [];
+
+      // Only include Active (Status == "Active") if status exists; otherwise include all.
+      const cleaned = rows.filter(r => {
+        const status = norm(r["Status"]);
+        return status ? (status.toLowerCase() === "active") : true;
+      });
+
+      // Sort by Date desc (newest first)
+      cleaned.sort((a,b) => parseDateForSort(b["Date"]) - parseDateForSort(a["Date"]));
+
+      allRows = cleaned.map(r => ({
+        Status: norm(r["Status"]),
+        Name: norm(r["Name"]),
+        ProductService: norm(r["Product/Service"]),
+        Location: norm(r["Location"]),
+        Category: norm(r["Category"]),
+        Practices: norm(r["Practices"]),
+        Website: norm(r["Website"]),
+        Phone: norm(r["Phone"]),
+        Email: norm(r["Email"]),
+        Address: norm(r["Address"]),
+        Geolocation: norm(r["Geolocation"]),
+        Notes: norm(r["Notes"]),
+        Date: norm(r["Date"])
+      }));
+
+      buildDropdowns(allRows);
+      setLastUpdatedFromData(allRows);
+
+      applyFiltersAndRender();
+    },
+    error: (err) => {
+      showError("Could not load the guide data. Check that the Google Sheet is published/accessible and the GID is correct.");
+      console.error(err);
+    }
+  });
+}
+
+function buildDropdowns(rows){
+  const locSelect = document.getElementById("locationFilter");
+  const pracSelect = document.getElementById("practiceFilter");
+
+  // Locations: split comma lists into individual items
+  const locSet = new Set();
+  for(const r of rows){
+    for(const loc of splitCommaList(r.Location)){
+      locSet.add(loc);
+    }
+  }
+  const locations = Array.from(locSet).sort((a,b)=>a.localeCompare(b));
+
+  // Practices: split comma lists into individual items
+  const pracSet = new Set();
+  for(const r of rows){
+    for(const p of splitCommaList(r.Practices)){
+      pracSet.add(p);
+    }
+  }
+  const practices = Array.from(pracSet).sort((a,b)=>a.localeCompare(b));
+
+  // Reset options
+  locSelect.innerHTML = `<option value="">All locations</option>` +
+    locations.map(x => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("");
+
+  pracSelect.innerHTML = `<option value="">All practices</option>` +
+    practices.map(x => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("");
+}
+
+function applyFiltersAndRender(){
+  const s = searchText.toLowerCase();
+
+  filteredRows = allRows.filter(r => {
+    // Search across: Name, Product/Service, Category, Practices
+    const hay = [
+      r.Name, r.ProductService, r.Category, r.Practices
+    ].join(" ").toLowerCase();
+
+    if(s && !hay.includes(s)) return false;
+
+    // Location dropdown filter (single selection)
+    if(selectedLocation){
+      const locs = splitCommaList(r.Location).map(x=>x.toLowerCase());
+      if(!locs.includes(selectedLocation.toLowerCase())) return false;
+    }
+
+    // Practice dropdown filter (single selection)
+    if(selectedPractice){
+      const ps = splitCommaList(r.Practices).map(x=>x.toLowerCase());
+      if(!ps.includes(selectedPractice.toLowerCase())) return false;
+    }
+
+    // Category pill filter (single category at a time)
+    if(selectedCategory){
+      const cats = splitCommaList(r.Category).map(x=>x.toLowerCase());
+      if(!cats.includes(selectedCategory.toLowerCase())) return false;
+    }
+
+    return true;
+  });
+
+  renderCount();
+  renderCards(filteredRows);
+}
+
+function renderCount(){
+  const el = document.getElementById("resultsCount");
+  el.textContent = `Showing ${filteredRows.length} of ${allRows.length} results`;
+}
+
+function renderCards(rows){
+  const host = document.getElementById("cards");
+  host.innerHTML = "";
+
+  for(const r of rows){
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const title = document.createElement("h3");
+    title.textContent = r.Name || "(No name)";
+    card.appendChild(title);
+
+    if(r.ProductService){
+      const desc = document.createElement("div");
+      desc.className = "desc";
+      desc.textContent = r.ProductService;
+      card.appendChild(desc);
+    }
+
+    // Category pills (blue) - CLICKABLE FILTER
+    const categories = splitCommaList(r.Category);
+    if(categories.length){
+      const catWrap = document.createElement("div");
+      for(const c of categories){
+        const pill = document.createElement("span");
+        pill.className = "pill category";
+        pill.textContent = c;
+        pill.title = "Filter by category";
+        pill.addEventListener("click", () => {
+          // toggle
+          selectedCategory = (selectedCategory && selectedCategory.toLowerCase() === c.toLowerCase()) ? "" : c;
+          applyFiltersAndRender();
+        });
+        catWrap.appendChild(pill);
+      }
+      card.appendChild(catWrap);
+    }
+
+    // Practice pills (green) - CLICKABLE FILTER (also sets practice dropdown)
+    const practices = splitCommaList(r.Practices);
+    if(practices.length){
+      const pracWrap = document.createElement("div");
+      for(const p of practices){
+        const pill = document.createElement("span");
+        pill.className = "pill practice";
+        pill.textContent = p;
+        pill.title = "Filter by practice";
+        pill.addEventListener("click", () => {
+          // toggle via dropdown-style filter
+          const next = (selectedPractice && selectedPractice.toLowerCase() === p.toLowerCase()) ? "" : p;
+          selectedPractice = next;
+          document.getElementById("practiceFilter").value = next;
+          applyFiltersAndRender();
+        });
+        pracWrap.appendChild(pill);
+      }
+      card.appendChild(pracWrap);
+    }
+
+    // Contact block with icons
+    const contact = document.createElement("div");
+    contact.className = "contact";
+
+    // Website: use only URLs (ignore label text)
+    const urls = extractUrls(r.Website);
+    if(urls.length){
+      for(const u of urls){
+        const row = document.createElement("div");
+        row.className = "contact-row";
+        row.innerHTML = `<div class="icon">🔗</div><div><a href="${u}" target="_blank" rel="noopener">${u}</a></div>`;
+        contact.appendChild(row);
+      }
+    }
+
+    if(r.Phone){
+      const row = document.createElement("div");
+      row.className = "contact-row";
+      // tel link, but show original
+      const tel = r.Phone.replace(/\s+/g," ").trim();
+      row.innerHTML = `<div class="icon">📞</div><div><a href="tel:${encodeURIComponent(tel)}">${escapeHtml(tel)}</a></div>`;
+      contact.appendChild(row);
+    }
+
+    if(r.Email){
+      const row = document.createElement("div");
+      row.className = "contact-row";
+      row.innerHTML = `<div class="icon">✉️</div><div><a href="mailto:${escapeHtml(r.Email)}">${escapeHtml(r.Email)}</a></div>`;
+      contact.appendChild(row);
+    }
+
+    // Address with Google Maps link (uses Geolocation if available)
+    if(r.Address || r.Geolocation){
+      const maps = googleMapsLink(r.Address, r.Geolocation);
+      const label = r.Address ? r.Address : r.Geolocation;
+      const row = document.createElement("div");
+      row.className = "contact-row";
+
+      if(maps){
+        row.innerHTML = `<div class="icon">📍</div><div><a href="${maps}" target="_blank" rel="noopener">${escapeHtml(label)}</a></div>`;
+      } else {
+        row.innerHTML = `<div class="icon">📍</div><div>${escapeHtml(label)}</div>`;
+      }
+      contact.appendChild(row);
+    }
+
+    if(contact.childNodes.length){
+      card.appendChild(contact);
+    }
+
+    // Notes at bottom, grey italic, with light line
+    if(r.Notes){
+      const notes = document.createElement("div");
+      notes.className = "notes";
+      notes.textContent = r.Notes;
+      card.appendChild(notes);
+    }
+
+    host.appendChild(card);
+  }
+}
+
+/* ======================
+   EVENTS
+====================== */
+document.getElementById("searchInput").addEventListener("input", (e) => {
+  searchText = e.target.value || "";
+  applyFiltersAndRender();
+});
+
+document.getElementById("locationFilter").addEventListener("change", (e) => {
+  selectedLocation = e.target.value || "";
+  applyFiltersAndRender();
+});
+
+document.getElementById("practiceFilter").addEventListener("change", (e) => {
+  selectedPractice = e.target.value || "";
+  applyFiltersAndRender();
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  searchText = "";
+  selectedLocation = "";
+  selectedPractice = "";
+  selectedCategory = "";
+
+  document.getElementById("searchInput").value = "";
+  document.getElementById("locationFilter").value = "";
+  document.getElementById("practiceFilter").value = "";
+
+  applyFiltersAndRender();
+});
+
+/* ======================
+   INIT
 ====================== */
 loadSlogans();
+loadData();
 </script>
 </body>
 </html>
