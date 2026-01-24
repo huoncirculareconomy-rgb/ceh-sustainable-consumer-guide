@@ -1,1110 +1,367 @@
-<!--
-PURPOSE & FUNCTION (for volunteers)
-This single-file web page displays the CEH Sustainable Consumer Guide as searchable “cards”, using data pulled live from a Google Sheet.
-It supports filtering by Location (dropdown), Practices (dropdown + clickable green pills), and Category (clickable blue pills), plus free-text search.
-It also shows rotating slogans (read from a separate sheet tab), displays contact details with icons, formats Product/Service text as readable “>” bullet lines,
-adds a notes section at the bottom of each card, includes Google Maps links for addresses where possible, shows when the data was last updated,
-and provides a print-friendly mode for cleaner printing.
--->
-
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CEH Sustainable Consumer Guide</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CEH Sustainable Consumer Guide</title>
 
-  <style>
-    :root{
-      --bg:#f6f3ef;
-      --panel:#fbf8f4;
-      --card:#f8f6f3;
-      --border:#d9d9d9;
-      --text:#24323f;
-      --muted:#6a6a6a;
-      --title:#2e8b57;
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-      --pill-blue-bg:#e6f0ff;
-      --pill-blue-bd:#bcd2ff;
-      --pill-blue-tx:#0b3ea9;
+<style>
+:root{
+  --bg:#f6f3ef;
+  --panel:#fbf8f4;
+  --card:#f8f6f3;
+  --border:#d9d9d9;
+  --text:#24323f;
+  --muted:#777;
+  --title:#2e8b57;
 
-      --pill-green-bg:#e7f6ea;
-      --pill-green-bd:#b9e2c2;
-      --pill-green-tx:#1a6b2f;
+  --blue-bg:#e6f0ff;
+  --blue-bd:#bcd2ff;
+  --blue-tx:#0b3ea9;
 
-      --btn-blue:#1f66d1;
-      --btn-blue-dark:#154ea3;
-      --btn-text:#ffffff;
+  --green-bg:#e7f6ea;
+  --green-bd:#b9e2c2;
+  --green-tx:#1a6b2f;
 
-      --shadow:0 1px 3px rgba(0,0,0,.08);
-      --radius:12px;
-    }
+  --btn:#1f66d1;
+  --btn-dark:#154ea3;
+}
 
-    html, body{
-      margin:0;
-      padding:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background:var(--bg);
-      color:var(--text);
-    }
+*{box-sizing:border-box}
 
-    .wrap{
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 22px 18px 28px;
-    }
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
 
-    header{
-      text-align:center;
-      margin-bottom: 14px;
-    }
+.wrap{
+  max-width:1200px;
+  margin:auto;
+  padding:22px 18px 28px;
+}
 
-    h1{
-      margin: 8px 0 6px;
-      font-weight: 800;
-      letter-spacing: .2px;
-      color: var(--title);
-      font-size: clamp(30px, 3.5vw, 44px);
-    }
+h1{
+  text-align:center;
+  color:var(--title);
+  margin:8px 0 4px;
+}
 
-    .slogan{
-      margin: 0 auto;
-      max-width: 900px;
-      font-style: italic;
-      color: #2f2f2f;
-      font-size: 16px;
-      line-height: 1.35;
-      min-height: 1.5em; /* stable height while rotating */
-    }
-    .slogan a{
-      color: inherit;
-      text-decoration: underline;
-    }
+.slogan{
+  text-align:center;
+  font-style:italic;
+  min-height:1.4em;
+  margin-bottom:18px;
+}
 
-    .controls{
-      margin-top: 18px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 14px;
-    }
+.controls{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
 
-    .controls-top{
-      display:flex;
-      gap: 10px;
-      align-items: stretch;
-      flex-wrap: wrap; /* mobile wrap */
-    }
+.controls-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
 
-    /* Make search and selects same height */
-    .input, .select, .btn{
-      height: 42px;
-      border-radius: 8px;
-      border: 1px solid #7d7d7d;
-      background: #fff;
-      font-size: 14px;
-      line-height: 42px;
-      box-sizing: border-box;
-    }
+.input, .select, .btn{
+  height:42px;
+  padding:0 12px;
+  font-size:14px;
+  border-radius:8px;
+  border:1px solid #7d7d7d;
+  background:#fff;
+}
 
-    .input{
-      flex: 1 1 360px;
-      padding: 0 12px;
-      line-height: normal;
-    }
+.input{
+  flex:1 1 360px;
+}
 
-    .select{
-      flex: 0 1 220px;
-      padding: 0 10px;
-      line-height: normal;
-    }
+.select{
+  flex:0 1 220px;
+}
 
-    .btn{
-      border: 1px solid var(--btn-blue);
-      background: var(--btn-blue);
-      color: var(--btn-text);
-      font-weight: 700;
-      padding: 0 14px;
-      cursor: pointer;
-      line-height: 40px;
-      white-space: nowrap;
-    }
-    .btn:hover{ background: var(--btn-blue-dark); border-color: var(--btn-blue-dark); }
+.btn{
+  background:var(--btn);
+  color:#fff;
+  border-color:var(--btn);
+  font-weight:700;
+  cursor:pointer;
+}
 
-    .btn.secondary{
-      background: #fff;
-      color: var(--btn-blue);
-      border-color: var(--btn-blue);
-      font-weight: 700;
-    }
-    .btn.secondary:hover{
-      background: #eef5ff;
-    }
+.btn:hover{ background:var(--btn-dark); }
 
-    .meta-row{
-      margin-top: 10px;
-      display:flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-      justify-content: space-between;
-    }
+.meta{
+  margin-top:10px;
+  font-size:13px;
+  color:var(--muted);
+}
 
-    .showing{
-      font-size: 13px;
-      color: var(--muted);
-    }
+.grid{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+}
 
-    .toggles{
-      display:flex;
-      gap: 14px;
-      align-items:center;
-      flex-wrap: wrap;
-      justify-content:flex-end;
-    }
+@media(max-width:900px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+  .grid{grid-template-columns:1fr}
+}
 
-    .toggle{
-      display:flex;
-      gap: 8px;
-      align-items:center;
-      font-size: 13px;
-      color: var(--muted);
-      user-select: none;
-    }
-    .toggle input{ transform: translateY(1px); }
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
 
-    /* Cards grid */
-    .grid{
-      margin-top: 14px;
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
+.name{
+  font-weight:800;
+  margin-bottom:8px;
+}
 
-    @media (max-width: 980px){
-      .grid{ grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 640px){
-      .grid{ grid-template-columns: 1fr; }
-      .select{ flex: 1 1 220px; }
-      .btn{ width: auto; }
-    }
+.bullets{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+}
 
-    .card{
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 14px 14px 12px;
-      min-height: 120px;
-      position: relative;
-    }
+.bullet{
+  display:grid;
+  grid-template-columns:14px 1fr;
+  gap:6px;
+  font-size:13.5px;
+  line-height:1.42;
+}
 
-    .card.featured{
-      border-color: #f0b429;
-      box-shadow: 0 2px 10px rgba(240,180,41,.18);
-    }
-    .badge-featured{
-      position:absolute;
-      top: 10px;
-      right: 10px;
-      font-size: 11px;
-      font-weight: 800;
-      color: #6b4b00;
-      background: #fff1c2;
-      border: 1px solid #f0b429;
-      border-radius: 999px;
-      padding: 3px 8px;
-    }
+.chev{font-weight:700}
 
-    .name{
-      font-weight: 800;
-      font-size: 16px;
-      margin: 0 0 8px;
-      color: #111;
-    }
+.pills{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-bottom:8px;
+}
 
-    /* Product/Service bullet formatting: wrapped lines align with text (not the ">") */
-    .bullets{
-      display: grid;
-      gap: 6px;
-      margin: 0 0 10px;
-    }
-    .bullet{
-      display: grid;
-      grid-template-columns: 14px 1fr;
-      column-gap: 6px;
-      align-items: start;
-      font-size: 13.5px;
-      line-height: 1.42;
-      color: #1e2a35;
-    }
-    .chev{
-      color:#333;
-      font-weight: 700;
-      line-height: 1.42;
-      transform: translateY(0.5px);
-    }
+.pill{
+  font-size:12px;
+  padding:3px 9px;
+  border-radius:999px;
+  border:1px solid transparent;
+  cursor:pointer;
+}
 
-    .pills{
-      display:flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin: 8px 0 10px;
-    }
+.pill.blue{
+  background:var(--blue-bg);
+  border-color:var(--blue-bd);
+  color:var(--blue-tx);
+}
 
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding: 3px 9px;
-      border-radius: 999px;
-      font-size: 12px;
-      border: 1px solid transparent;
-      user-select:none;
-      cursor: default;
-    }
+.pill.green{
+  background:var(--green-bg);
+  border-color:var(--green-bd);
+  color:var(--green-tx);
+}
 
-    .pill.blue{
-      background: var(--pill-blue-bg);
-      border-color: var(--pill-blue-bd);
-      color: var(--pill-blue-tx);
-      cursor: pointer;
-    }
+.links{
+  border-top:1px solid #e5e5e5;
+  padding-top:8px;
+  font-size:12.5px;
+}
 
-    .pill.green{
-      background: var(--pill-green-bg);
-      border-color: var(--pill-green-bd);
-      color: var(--pill-green-tx);
-      cursor: pointer;
-    }
+.linkrow{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+}
 
-    .pill.selected{
-      outline: 2px solid rgba(31,102,209,.25);
-    }
+.linkrow a{
+  color:#0b59d1;
+  word-break:break-word;
+  font-size:12.5px;
+}
 
-    .links{
-      border-top: 1px solid #e5e5e5;
-      padding-top: 8px;
-      margin-top: 8px;
-      display: grid;
-      gap: 4px;
-      font-size: 12.5px;
-    }
-    .links a{
-      color:#0b59d1;
-      text-decoration: underline;
-      font-size: 12.5px; /* reduce hyperlink font size */
-      word-break: break-word;
-    }
-    .linkrow{
-      display:flex;
-      gap: 8px;
-      align-items: flex-start;
-      line-height: 1.35;
-    }
-    .ico{
-      width: 16px;
-      text-align:center;
-      opacity: .85;
-      flex: 0 0 16px;
-      transform: translateY(1px);
-    }
+.notes{
+  border-top:1px solid #e5e5e5;
+  margin-top:8px;
+  padding-top:8px;
+  font-size:12.5px;
+  font-style:italic;
+  color:#7a7a7a;
+}
 
-    .notes{
-      border-top: 1px solid #e5e5e5;
-      margin-top: 8px;
-      padding-top: 8px;
-      color: #7a7a7a;
-      font-style: italic;
-      font-size: 12.5px;
-      line-height: 1.35;
-      white-space: pre-wrap;
-    }
-
-    footer{
-      margin-top: 16px;
-      text-align:center;
-      font-size: 12.5px;
-      color: var(--muted);
-    }
-
-    /* Print-friendly mode */
-    body.print-mode{
-      background: #fff;
-    }
-    body.print-mode .controls{
-      box-shadow: none;
-      border: 1px solid #ccc;
-    }
-    body.print-mode .btn.secondary{
-      display: none; /* hide print-mode toggle button itself when in print mode */
-    }
-
-    @media print{
-      body{ background:#fff; }
-      .controls, .meta-row, .toggles, .btn, .select, .input{
-        display:none !important;
-      }
-      header{ margin-top: 0; }
-      .wrap{ max-width: none; padding: 0 10mm; }
-      .grid{ grid-template-columns: 1fr !important; gap: 10px; }
-      .card{ box-shadow:none; border:1px solid #bbb; page-break-inside: avoid; }
-      footer{ margin-top: 8mm; }
-    }
-
-    .loading{
-      text-align:center;
-      padding: 18px 10px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .error{
-      margin-top: 10px;
-      border: 1px solid #d33;
-      background: #ffecec;
-      color: #8a1f1f;
-      padding: 10px 12px;
-      border-radius: 10px;
-      font-size: 13px;
-      white-space: pre-wrap;
-    }
-  </style>
+footer{
+  margin-top:18px;
+  text-align:center;
+  font-size:12.5px;
+  color:var(--muted);
+}
+</style>
 </head>
 
 <body>
-  <div class="wrap">
+<div class="wrap">
 
-    <header>
-      <h1>CEH Sustainable Consumer Guide</h1>
-      <div class="slogan" id="sloganBox"></div>
-    </header>
+<h1>CEH Sustainable Consumer Guide</h1>
+<div class="slogan" id="slogan"></div>
 
-    <section class="controls">
-      <div class="controls-top">
-        <input id="q" class="input" type="search" placeholder="Search name, product, category or practice..." />
-        <select id="loc" class="select"></select>
-        <select id="prac" class="select"></select>
-        <button id="reset" class="btn">Reset filters</button>
-        <button id="printMode" class="btn secondary" title="Toggle print-friendly mode (then use your browser Print)">
-          Print-friendly
-        </button>
-      </div>
-
-      <div class="meta-row">
-        <div class="showing" id="showing">Loading…</div>
-        <div class="toggles">
-          <label class="toggle">
-            <input type="checkbox" id="featuredOnly" />
-            Featured only
-          </label>
-          <span class="showing" id="activeFiltersHint"></span>
-        </div>
-      </div>
-
-      <div id="err" class="error" style="display:none;"></div>
-    </section>
-
-    <div id="grid" class="grid"></div>
-    <div id="loading" class="loading">Loading directory…</div>
-
-    <footer id="footer"></footer>
+<div class="controls">
+  <div class="controls-row">
+    <input id="search" class="input" placeholder="Search name, product, category or practice…" />
+    <select id="locationFilter" class="select"></select>
+    <select id="practiceFilter" class="select"></select>
+    <button class="btn" onclick="resetFilters()">Reset filters</button>
   </div>
+  <div class="meta" id="resultCount"></div>
+</div>
+
+<div class="grid" id="cards"></div>
+
+<footer id="updated"></footer>
+
+</div>
 
 <script>
-/* ============================
-   CONFIG (Austin’s sheet IDs)
-   ============================ */
-const SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
-const DATA_GID  = "2076497318";
-const SLOGAN_GID = "435440157";
+/* ========= DATA SOURCES ========= */
+const DATA_CSV =
+  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/gviz/tq?tqx=out:csv&gid=2076497318";
 
-/* slogans are in A:C, but must start from Row 4 and go to Row 16 */
-const SLOGAN_START_ROW = 4;
-const SLOGAN_END_ROW   = 16;
+const SLOGAN_CSV =
+  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/gviz/tq?tqx=out:csv&gid=435440157";
 
-/* Optional: treat these Status values as “publishable”.
-   If Status is blank, we also include it. */
-const ALLOWED_STATUS = new Set(["", "active", "published", "ok", "live", "yes", "y", "1", "true", "featured"]);
-
-/* If Status contains "featured" (case-insensitive), card can be “Featured”. */
-function isFeaturedStatus(s){
-  return String(s||"").toLowerCase().includes("featured");
-}
-
-/* ============================
-   Utilities
-   ============================ */
-function showError(msg){
-  const el = document.getElementById("err");
-  el.style.display = "block";
-  el.textContent = msg;
-}
-function clearError(){
-  const el = document.getElementById("err");
-  el.style.display = "none";
-  el.textContent = "";
-}
-
-function gvizUrl(gid){
-  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
-}
-
-async function fetchGViz(gid){
-  const res = await fetch(gvizUrl(gid), { cache: "no-store" });
-  if(!res.ok) throw new Error(`Fetch failed (${res.status}) for gid=${gid}`);
-  const text = await res.text();
-
-  // GViz returns something like: google.visualization.Query.setResponse({...});
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if(start < 0 || end < 0) throw new Error("Unexpected GViz response (cannot find JSON object).");
-  const json = JSON.parse(text.slice(start, end+1));
-  return json;
-}
-
-function toCell(v){
-  return (v && typeof v === "object" && "v" in v) ? v.v : (v ?? "");
-}
-
-function splitCommaList(s){
-  return String(s || "")
-    .split(",")
-    .map(x => x.trim())
-    .filter(Boolean);
-}
-
-function normaliseKey(s){
-  return String(s || "").trim().toLowerCase();
-}
-
-function uniqueSorted(arr){
-  const seen = new Set();
-  const out = [];
-  for(const v of arr){
-    const k = normaliseKey(v);
-    if(!k) continue;
-    if(seen.has(k)) continue;
-    seen.add(k);
-    out.push(v);
-  }
-  return out.sort((a,b)=> a.localeCompare(b, undefined, { sensitivity:"base" }));
-}
-
-/* Extract URLs from mixed text, ignore labels like "Early Bird Farm:" */
-function extractUrls(mixed){
-  const s = String(mixed || "");
-  const rx = /((https?:\/\/[^\s,]+)|(www\.[^\s,]+))/gi;
-  const matches = s.match(rx) || [];
-  const urls = matches.map(u=>{
-    const t = u.trim().replace(/[)\].]+$/,"");
-    return t.startsWith("http") ? t : `https://${t}`;
-  });
-  // de-dupe
-  return [...new Set(urls)];
-}
-
-function safeText(s){
-  return String(s || "").replace(/\s+/g, " ").trim();
-}
-
-function parseDateLoose(v){
-  // Accepts Date object-ish, ISO, AU style, etc. Returns JS Date or null.
-  if(!v) return null;
-  if(v instanceof Date && !isNaN(v)) return v;
-
-  const s = String(v).trim();
-  if(!s) return null;
-
-  // Try Date.parse first
-  const t = Date.parse(s);
-  if(!isNaN(t)) return new Date(t);
-
-  // Try dd/mm/yyyy
-  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if(m){
-    let dd = parseInt(m[1],10), mm = parseInt(m[2],10), yy = parseInt(m[3],10);
-    if(yy < 100) yy += 2000;
-    const d = new Date(yy, mm-1, dd);
-    return isNaN(d) ? null : d;
-  }
-  return null;
-}
-
-function formatAUDate(d){
-  if(!(d instanceof Date) || isNaN(d)) return "";
-  const dd = String(d.getDate()).padStart(2,"0");
-  const mm = String(d.getMonth()+1).padStart(2,"0");
-  const yy = d.getFullYear();
-  return `${dd}/${mm}/${yy}`;
-}
-
-/* Build Google Maps link using Geolocation (preferred) or Address */
-function mapsLink(address, geolocation){
-  const geo = String(geolocation || "").trim();
-  if(geo){
-    // Expected formats: "lat,lng" possibly with spaces
-    const cleaned = geo.replace(/\s+/g,"");
-    if(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(cleaned)){
-      const q = encodeURIComponent(cleaned);
-      return `https://www.google.com/maps/search/?api=1&query=${q}`;
-    }
-  }
-  const addr = String(address || "").trim();
-  if(addr){
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
-  }
-  return "";
-}
-
-/* Product/Service -> bullets:
-   - split on ". " (period followed by space) but keep sensible chunks
-   - ensure first sentence has a bullet
-*/
-function productToBullets(text){
-  const s = String(text || "").trim();
-  if(!s) return [];
-  // Split on period + space, but keep abbreviations loosely by not over-thinking.
-  const parts = s
-    .replace(/\s+/g," ")
-    .split(/\. +/g)
-    .map(p => p.trim())
-    .filter(Boolean)
-    .map(p => p.endsWith(".") ? p : (p + "."));
-  return parts.length ? parts : [s];
-}
-
-/* ============================
-   State
-   ============================ */
-let ROWS = [];
+/* ========= GLOBALS ========= */
+let allData = [];
 let filtered = [];
 
-const selectedCategories = new Set(); // category keys
-const selectedPracticesPills = new Set(); // practice keys (from clickable green pills)
+/* ========= HELPERS ========= */
+const splitClean = v =>
+  v ? v.split(",").map(x => x.trim()).filter(Boolean) : [];
 
-/* ============================
-   DOM
-   ============================ */
-const grid = document.getElementById("grid");
-const loadingEl = document.getElementById("loading");
-const showingEl = document.getElementById("showing");
-const footerEl = document.getElementById("footer");
-const qEl = document.getElementById("q");
-const locEl = document.getElementById("loc");
-const pracEl = document.getElementById("prac");
-const resetEl = document.getElementById("reset");
-const featuredOnlyEl = document.getElementById("featuredOnly");
-const printModeEl = document.getElementById("printMode");
-const filtersHintEl = document.getElementById("activeFiltersHint");
+const bulletise = text => {
+  if(!text) return "";
+  return text
+    .split(".")
+    .map(t => t.trim())
+    .filter(Boolean)
+    .map(t => `
+      <div class="bullet">
+        <div class="chev">&gt;</div>
+        <div>${t}.</div>
+      </div>
+    `).join("");
+};
 
-/* ============================
-   Load slogans (Row 4–16)
-   ============================ */
-let slogans = [];
-let sloganTimer = null;
-let sloganIndex = 0;
+const onlyLinks = text =>
+  splitClean(text).filter(v => v.startsWith("http"));
 
-function stopSloganRotation(){
-  if(sloganTimer) clearTimeout(sloganTimer);
-  sloganTimer = null;
+/* ========= LOAD DATA ========= */
+Papa.parse(DATA_CSV,{
+  download:true,
+  header:true,
+  complete:r=>{
+    allData = r.data.filter(x=>x.Status?.toLowerCase()==="published");
+    allData.sort((a,b)=>new Date(b.Date)-new Date(a.Date));
+    buildFilters();
+    applyFilters();
+    document.getElementById("updated").textContent =
+      "Data last updated: " + new Date().toLocaleDateString();
+  }
+});
+
+/* ========= FILTERS ========= */
+function buildFilters(){
+  const loc = new Set(), prac = new Set();
+  allData.forEach(r=>{
+    splitClean(r.Location).forEach(x=>loc.add(x));
+    splitClean(r.Practices).forEach(x=>prac.add(x));
+  });
+
+  locationFilter.innerHTML =
+    `<option value="">All locations</option>` +
+    [...loc].sort().map(x=>`<option>${x}</option>`).join("");
+
+  practiceFilter.innerHTML =
+    `<option value="">All practices</option>` +
+    [...prac].sort().map(x=>`<option>${x}</option>`).join("");
 }
 
-function renderSlogan(){
-  const box = document.getElementById("sloganBox");
-  if(!slogans.length){
-    box.textContent = "";
-    return;
-  }
-  const item = slogans[sloganIndex % slogans.length];
-  const text = safeText(item.text);
-  const url = safeText(item.url);
-  box.innerHTML = "";
+search.oninput = locationFilter.onchange = practiceFilter.onchange = applyFilters;
 
-  if(url){
-    const a = document.createElement("a");
-    a.href = url.startsWith("http") ? url : `https://${url}`;
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.textContent = text;
-    box.appendChild(a);
-  }else{
-    box.textContent = text;
-  }
-
-  const seconds = Math.max(2, Number(item.seconds) || 6);
-  sloganIndex++;
-  stopSloganRotation();
-  sloganTimer = setTimeout(renderSlogan, seconds * 1000);
+function resetFilters(){
+  search.value="";
+  locationFilter.value="";
+  practiceFilter.value="";
+  applyFilters();
 }
 
-async function loadSlogans(){
-  try{
-    const json = await fetchGViz(SLOGAN_GID);
-    const table = json.table;
-    const rows = table.rows || [];
-
-    // Convert GViz row index -> sheet row number:
-    // If row[0] is headers row (Row 1), then:
-    // sheetRowNum = 2 + gvizRowIndex  (because GViz rows start after header)
-    // Example: gvizRowIndex 0 corresponds to Sheet Row 2.
-    const out = [];
-    for(let i=0; i<rows.length; i++){
-      const sheetRowNum = 2 + i;
-      if(sheetRowNum < SLOGAN_START_ROW || sheetRowNum > SLOGAN_END_ROW) continue;
-
-      const c = rows[i].c || [];
-      const text = toCell(c[0]);
-      const url = toCell(c[1]);
-      const seconds = toCell(c[2]);
-      if(String(text||"").trim()){
-        out.push({ text, url, seconds });
-      }
-    }
-    slogans = out;
-    sloganIndex = 0;
-    renderSlogan();
-  }catch(e){
-    // Non-fatal: just hide slogan
-    const box = document.getElementById("sloganBox");
-    box.textContent = "";
-  }
-}
-
-/* ============================
-   Load directory data
-   ============================ */
-function mapHeaders(cols){
-  const headers = cols.map(c => (c.label || "").trim());
-  const idx = {};
-  for(let i=0;i<headers.length;i++){
-    idx[headers[i]] = i;
-  }
-  return idx;
-}
-
-function getByHeader(rowCells, idx, headerName){
-  const i = idx[headerName];
-  return i === undefined ? "" : toCell(rowCells[i]);
-}
-
-async function loadDirectory(){
-  clearError();
-  loadingEl.style.display = "block";
-  grid.innerHTML = "";
-
-  try{
-    const json = await fetchGViz(DATA_GID);
-    const table = json.table;
-    const cols = table.cols || [];
-    const rows = table.rows || [];
-
-    const idx = mapHeaders(cols);
-
-    // Expected headers provided by Austin:
-    // Status Name Product/Service Location Category Practices Website Phone Email Address Geolocation Notes Date
-    const out = [];
-
-    for(const r of rows){
-      const c = r.c || [];
-      const Status = getByHeader(c, idx, "Status");
-      const statusKey = normaliseKey(Status);
-
-      if(!ALLOWED_STATUS.has(statusKey)){
-        // If Status is something else (eg "Draft"), skip
-        continue;
-      }
-
-      const Name = getByHeader(c, idx, "Name");
-      const Product = getByHeader(c, idx, "Product/Service");
-      const Location = getByHeader(c, idx, "Location");
-      const Category = getByHeader(c, idx, "Category");
-      const Practices = getByHeader(c, idx, "Practices");
-      const Website = getByHeader(c, idx, "Website");
-      const Phone = getByHeader(c, idx, "Phone");
-      const Email = getByHeader(c, idx, "Email");
-      const Address = getByHeader(c, idx, "Address");
-      const Geolocation = getByHeader(c, idx, "Geolocation");
-      const Notes = getByHeader(c, idx, "Notes");
-      const DateVal = getByHeader(c, idx, "Date");
-
-      const d = parseDateLoose(DateVal);
-
-      out.push({
-        Status, Name, Product, Location, Category, Practices, Website,
-        Phone, Email, Address, Geolocation, Notes,
-        dateObj: d,
-        dateRaw: DateVal
-      });
-    }
-
-    // Sort by Date desc (last one first). If no date, push to bottom.
-    out.sort((a,b)=>{
-      const ta = a.dateObj ? a.dateObj.getTime() : -Infinity;
-      const tb = b.dateObj ? b.dateObj.getTime() : -Infinity;
-      return tb - ta;
-    });
-
-    ROWS = out;
-
-    // Populate dropdowns from split values
-    const allLocations = [];
-    const allPractices = [];
-    for(const row of ROWS){
-      splitCommaList(row.Location).forEach(x => allLocations.push(x));
-      splitCommaList(row.Practices).forEach(x => allPractices.push(x));
-    }
-
-    // Canonical locking:
-    // display the first-seen version for each lowercased key
-    const canonPractice = new Map();
-    for(const p of allPractices){
-      const k = normaliseKey(p);
-      if(!canonPractice.has(k)) canonPractice.set(k, p.trim());
-    }
-
-    const locOptions = uniqueSorted(allLocations);
-    const pracOptions = uniqueSorted([...canonPractice.values()]);
-
-    // Build selects
-    locEl.innerHTML = "";
-    const opt0 = document.createElement("option");
-    opt0.value = "";
-    opt0.textContent = "All locations";
-    locEl.appendChild(opt0);
-    for(const v of locOptions){
-      const o = document.createElement("option");
-      o.value = v;
-      o.textContent = v;
-      locEl.appendChild(o);
-    }
-
-    pracEl.innerHTML = "";
-    const optP0 = document.createElement("option");
-    optP0.value = "";
-    optP0.textContent = "All practices";
-    pracEl.appendChild(optP0);
-    for(const v of pracOptions){
-      const o = document.createElement("option");
-      o.value = v;
-      o.textContent = v;
-      pracEl.appendChild(o);
-    }
-
-    // Footer: data last updated from max date
-    const maxDate = ROWS.reduce((acc,r)=>{
-      if(r.dateObj && (!acc || r.dateObj > acc)) return r.dateObj;
-      return acc;
-    }, null);
-    footerEl.textContent = maxDate ? `Data last updated: ${formatAUDate(maxDate)}` : "";
-
-    loadingEl.style.display = "none";
-    render();
-  }catch(e){
-    loadingEl.style.display = "none";
-    showError(
-      "Directory failed to load.\n\n" +
-      "Most common causes:\n" +
-      "• Sheet sharing is not set to “Anyone with the link can view”.\n" +
-      "• The GID is wrong.\n" +
-      "• The header row names changed.\n\n" +
-      "Technical detail:\n" + (e && e.message ? e.message : String(e))
-    );
-  }
-}
-
-/* ============================
-   Filtering + Rendering
-   ============================ */
-function matchesText(row, q){
-  if(!q) return true;
-  const t = q.toLowerCase();
-  return [
-    row.Name, row.Product, row.Category, row.Practices, row.Website, row.Notes
-  ].some(v => String(v||"").toLowerCase().includes(t));
-}
-
-function matchesLocation(row, loc){
-  if(!loc) return true;
-  const parts = splitCommaList(row.Location).map(normaliseKey);
-  return parts.includes(normaliseKey(loc));
-}
-
-function matchesPracticeDropdown(row, practice){
-  if(!practice) return true;
-  const parts = splitCommaList(row.Practices).map(normaliseKey);
-  return parts.includes(normaliseKey(practice));
-}
-
-function matchesPracticePills(row){
-  if(selectedPracticesPills.size === 0) return true;
-  const parts = new Set(splitCommaList(row.Practices).map(normaliseKey));
-  for(const k of selectedPracticesPills){
-    if(parts.has(k)) return true;
-  }
-  return false;
-}
-
-function matchesCategoryPills(row){
-  if(selectedCategories.size === 0) return true;
-  const parts = new Set(splitCommaList(row.Category).map(normaliseKey));
-  for(const k of selectedCategories){
-    if(parts.has(k)) return true;
-  }
-  return false;
-}
-
-function matchesFeatured(row){
-  if(!featuredOnlyEl.checked) return true;
-  return isFeaturedStatus(row.Status);
-}
-
-function buildCard(row){
-  const card = document.createElement("div");
-  card.className = "card" + (isFeaturedStatus(row.Status) ? " featured" : "");
-
-  if(isFeaturedStatus(row.Status)){
-    const badge = document.createElement("div");
-    badge.className = "badge-featured";
-    badge.textContent = "FEATURED";
-    card.appendChild(badge);
-  }
-
-  const name = document.createElement("div");
-  name.className = "name";
-  name.textContent = safeText(row.Name) || "Unnamed entry";
-  card.appendChild(name);
-
-  // Product/Service bullets
-  const bullets = document.createElement("div");
-  bullets.className = "bullets";
-  const bulletLines = productToBullets(row.Product);
-  for(const line of bulletLines){
-    const b = document.createElement("div");
-    b.className = "bullet";
-    const chev = document.createElement("div");
-    chev.className = "chev";
-    chev.textContent = ">";
-    const txt = document.createElement("div");
-    txt.textContent = line.replace(/\s+/g," ").trim();
-    b.appendChild(chev);
-    b.appendChild(txt);
-    bullets.appendChild(b);
-  }
-  card.appendChild(bullets);
-
-  // Category pills (blue) — clickable filter; separate per comma item
-  const catParts = splitCommaList(row.Category);
-  if(catParts.length){
-    const pills = document.createElement("div");
-    pills.className = "pills";
-    for(const cat of catParts){
-      const k = normaliseKey(cat);
-      const pill = document.createElement("span");
-      pill.className = "pill blue" + (selectedCategories.has(k) ? " selected" : "");
-      pill.textContent = cat;
-      pill.title = "Click to filter by category";
-      pill.addEventListener("click", ()=>{
-        if(selectedCategories.has(k)) selectedCategories.delete(k);
-        else selectedCategories.add(k);
-        render();
-      });
-      pills.appendChild(pill);
-    }
-    card.appendChild(pills);
-  }
-
-  // Practice pills (green) — clickable filter; separate per comma item
-  const pracParts = splitCommaList(row.Practices);
-  if(pracParts.length){
-    const pills = document.createElement("div");
-    pills.className = "pills";
-    for(const p of pracParts){
-      const k = normaliseKey(p);
-      const pill = document.createElement("span");
-      pill.className = "pill green" + (selectedPracticesPills.has(k) ? " selected" : "");
-      pill.textContent = p;
-      pill.title = "Click to filter by practice";
-      pill.addEventListener("click", ()=>{
-        if(selectedPracticesPills.has(k)) selectedPracticesPills.delete(k);
-        else selectedPracticesPills.add(k);
-        render();
-      });
-      pills.appendChild(pill);
-    }
-    card.appendChild(pills);
-  }
-
-  // Links + contact details
-  const links = document.createElement("div");
-  links.className = "links";
-
-  // Website: use only links extracted; one per line with link icon
-  const urls = extractUrls(row.Website);
-  for(const url of urls){
-    const r = document.createElement("div");
-    r.className = "linkrow";
-    const ico = document.createElement("div");
-    ico.className = "ico";
-    ico.textContent = "🔗";
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.textContent = url;
-    r.appendChild(ico);
-    r.appendChild(a);
-    links.appendChild(r);
-  }
-
-  // Email
-  const email = safeText(row.Email);
-  if(email){
-    const r = document.createElement("div");
-    r.className = "linkrow";
-    const ico = document.createElement("div");
-    ico.className = "ico";
-    ico.textContent = "✉️";
-    const a = document.createElement("a");
-    a.href = `mailto:${email}`;
-    a.textContent = email;
-    r.appendChild(ico);
-    r.appendChild(a);
-    links.appendChild(r);
-  }
-
-  // Phone
-  const phone = safeText(row.Phone);
-  if(phone){
-    const r = document.createElement("div");
-    r.className = "linkrow";
-    const ico = document.createElement("div");
-    ico.className = "ico";
-    ico.textContent = "📞";
-    const a = document.createElement("a");
-    a.href = `tel:${phone.replace(/\s+/g,"")}`;
-    a.textContent = phone;
-    r.appendChild(ico);
-    r.appendChild(a);
-    links.appendChild(r);
-  }
-
-  // Address + maps link (if possible)
-  const address = safeText(row.Address);
-  const mlink = mapsLink(address, row.Geolocation);
-  if(address){
-    const r = document.createElement("div");
-    r.className = "linkrow";
-    const ico = document.createElement("div");
-    ico.className = "ico";
-    ico.textContent = "📍";
-    const span = document.createElement("div");
-    if(mlink){
-      const a = document.createElement("a");
-      a.href = mlink;
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.textContent = address;
-      span.appendChild(a);
-    }else{
-      span.textContent = address;
-    }
-    r.appendChild(ico);
-    r.appendChild(span);
-    links.appendChild(r);
-  }
-
-  if(links.childNodes.length){
-    card.appendChild(links);
-  }
-
-  // Notes at bottom (light rule already via .notes style)
-  const notesText = String(row.Notes || "").trim();
-  if(notesText){
-    const notes = document.createElement("div");
-    notes.className = "notes";
-    notes.textContent = notesText;
-    card.appendChild(notes);
-  }
-
-  return card;
-}
-
-function render(){
-  const q = qEl.value.trim();
-  const loc = locEl.value;
-  const prac = pracEl.value;
-
-  filtered = ROWS.filter(r =>
-    matchesText(r, q) &&
-    matchesLocation(r, loc) &&
-    matchesPracticeDropdown(r, prac) &&
-    matchesPracticePills(r) &&
-    matchesCategoryPills(r) &&
-    matchesFeatured(r)
-  );
-
-  const total = ROWS.length;
-  const shown = filtered.length;
-
-  showingEl.textContent = `Showing ${shown} of ${total} results`;
-
-  // hint about active pill filters
-  const catN = selectedCategories.size;
-  const pracN = selectedPracticesPills.size;
-  const parts = [];
-  if(catN) parts.push(`${catN} category`);
-  if(pracN) parts.push(`${pracN} practice`);
-  filtersHintEl.textContent = parts.length ? `Pill filters: ${parts.join(", ")}` : "";
-
-  grid.innerHTML = "";
-  if(shown === 0){
-    const msg = document.createElement("div");
-    msg.className = "loading";
-    msg.textContent = "No matching results.";
-    grid.appendChild(msg);
-    return;
-  }
-
-  for(const row of filtered){
-    grid.appendChild(buildCard(row));
-  }
-}
-
-/* ============================
-   Events
-   ============================ */
-qEl.addEventListener("input", ()=> render());
-locEl.addEventListener("change", ()=> render());
-pracEl.addEventListener("change", ()=> render());
-featuredOnlyEl.addEventListener("change", ()=> render());
-
-resetEl.addEventListener("click", ()=>{
-  qEl.value = "";
-  locEl.value = "";
-  pracEl.value = "";
-  featuredOnlyEl.checked = false;
-  selectedCategories.clear();
-  selectedPracticesPills.clear();
+function applyFilters(){
+  const q = search.value.toLowerCase();
+  filtered = allData.filter(r=>{
+    if(locationFilter.value && !r.Location?.includes(locationFilter.value)) return false;
+    if(practiceFilter.value && !r.Practices?.includes(practiceFilter.value)) return false;
+    return JSON.stringify(r).toLowerCase().includes(q);
+  });
   render();
-});
+}
 
-printModeEl.addEventListener("click", ()=>{
-  document.body.classList.toggle("print-mode");
-  // optional: open print dialog when toggled on
-  // if(document.body.classList.contains("print-mode")) window.print();
-});
+/* ========= RENDER ========= */
+function render(){
+  cards.innerHTML = filtered.map(r=>`
+    <div class="card">
+      <div class="name">${r.Name}</div>
+      <div class="bullets">${bulletise(r["Product/Service"])}</div>
 
-/* ============================
-   Boot
-   ============================ */
-(async function init(){
-  await loadSlogans();
-  await loadDirectory();
-})();
+      <div class="pills">
+        ${splitClean(r.Category).map(c=>`<span class="pill blue">${c}</span>`).join("")}
+      </div>
+
+      <div class="pills">
+        ${splitClean(r.Practices).map(p=>`<span class="pill green">${p}</span>`).join("")}
+      </div>
+
+      <div class="links">
+        ${onlyLinks(r.Website).map(l=>`<div class="linkrow">🔗 <a href="${l}" target="_blank">${l}</a></div>`).join("")}
+        ${r.Phone?`<div class="linkrow">📞 ${r.Phone}</div>`:""}
+        ${r.Email?`<div class="linkrow">✉️ <a href="mailto:${r.Email}">${r.Email}</a></div>`:""}
+        ${r.Address?`<div class="linkrow">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(r.Address)}" target="_blank">${r.Address}</a></div>`:""}
+      </div>
+
+      ${r.Notes?`<div class="notes">${r.Notes}</div>`:""}
+    </div>
+  `).join("");
+
+  resultCount.textContent =
+    `Showing ${filtered.length} of ${allData.length} results`;
+}
+
+/* ========= SLOGANS ========= */
+Papa.parse(SLOGAN_CSV,{
+  download:true,
+  header:false,
+  complete:r=>{
+    const rows = r.data.slice(3,16).filter(x=>x[0]);
+    let i=0;
+    const el = document.getElementById("slogan");
+    const show = ()=>{
+      const [txt,url,sec] = rows[i];
+      el.innerHTML = url ? `<a href="${url}" target="_blank">${txt}</a>` : txt;
+      i = (i+1)%rows.length;
+      setTimeout(show,(+sec||4)*1000);
+    };
+    show();
+  }
+});
 </script>
-
 </body>
 </html>
