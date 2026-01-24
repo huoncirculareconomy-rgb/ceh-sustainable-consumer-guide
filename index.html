@@ -227,22 +227,18 @@ footer{
 /* ========= DATA SOURCES ========= */
 
 const DATA_CSV =
-  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/gviz/tq?tqx=out:csv&gid=2076497318";
+  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export" +
+  "?format=csv&gid=2076497318";
 
 /*
   SLOGANS:
-  Spreadsheet rows:
-  - Skip rows 1–3
-  - Use rows 4–16
-  Columns:
-  A = text
-  B = optional URL
-  C = optional seconds
+  - Uses raw CSV export (no gviz)
+  - Spreadsheet rows 4–16
+  - Columns: A = text, B = URL, C = seconds
 */
 const SLOGAN_CSV =
-  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/gviz/tq" +
-  "?tqx=out:csv&gid=435440157&tq=" +
-  encodeURIComponent("select A,B,C offset 3 limit 13");
+  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export" +
+  "?format=csv&gid=435440157";
 
 /* ========= GLOBALS ========= */
 
@@ -362,7 +358,8 @@ Papa.parse(SLOGAN_CSV,{
   download:true,
   header:false,
   complete:r=>{
-    const rows = r.data.filter(x=>x[0]);
+    // Spreadsheet rows 4–16 (0-based slice)
+    const rows = r.data.slice(3,16).filter(x => x[0]);
     let i = 0;
 
     const show = () => {
