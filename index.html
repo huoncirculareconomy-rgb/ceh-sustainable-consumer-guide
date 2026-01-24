@@ -1,406 +1,289 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>CEH Sustainable Consumer Guide</title>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<title>CEH Sustainable Consumer Guide</title>
 
 <style>
-/* =====================
-   BASE STYLES
-===================== */
 :root{
-  --bg:#f3f1ec;
-  --panel:#f8f7f4;
-  --card:#fbfaf8;
-  --border:#ddd;
+  --bg:#f6f3ef;
+  --panel:#fbf8f4;
+  --card:#f8f6f3;
+  --border:#d9d9d9;
   --text:#24323f;
-  --muted:#666;
-  --title:#2f8f5b;
+  --muted:#6a6a6a;
+  --title:#2e8b57;
 
   --blue-bg:#e6f0ff;
-  --blue-border:#bcd2ff;
-  --blue-text:#2457c5;
+  --blue-bd:#bcd2ff;
+  --blue-tx:#0b3ea9;
 
-  --green-bg:#e7f5ea;
-  --green-border:#bfe3cc;
-  --green-text:#1b7f4d;
+  --green-bg:#e7f6ea;
+  --green-bd:#b9e2c2;
+  --green-tx:#1a6b2f;
 
-  --btn-blue:#1a73e8;
+  --btn:#1f66d1;
+  --btn-dark:#154ea3;
+
+  --radius:12px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);
 }
 
-body{
+/* ---------- Base ---------- */
+*{ box-sizing:border-box; }
+
+html,body{
   margin:0;
-  font-family: system-ui, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
 }
 
-.container{
+.wrap{
   max-width:1200px;
-  margin:0 auto;
-  padding:20px 14px 30px;
-  background:var(--panel);
-  border-radius:14px;
+  margin:auto;
+  padding:22px 18px 28px;
 }
 
-/* =====================
-   HEADER
-===================== */
+header{
+  text-align:center;
+}
+
 h1{
-  margin:0;
-  text-align:center;
+  margin:8px 0 6px;
+  font-weight:800;
   color:var(--title);
-  font-size:40px;
 }
 
-#slogan{
-  text-align:center;
+.slogan{
   font-style:italic;
-  color:#444;
-  margin:8px auto 18px;
-  max-width:720px;
-  min-height:1.4em;
+  min-height:1.5em;
 }
 
-/* =====================
-   FILTERS
-===================== */
-.filters{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  padding-bottom:12px;
-  border-bottom:1px solid #e0e0e0;
-}
-
-.filters input,
-.filters select{
-  height:42px;
-  padding:8px 12px;
-  font-size:14px;
-  border:1px solid #777;
-  background:#fff;
-}
-
-#searchInput{flex:1 1 420px;}
-#locationFilter,#practiceFilter{flex:0 0 220px;}
-
-#resetBtn{
-  height:42px;
-  padding:0 14px;
-  border-radius:6px;
-  border:1px solid var(--btn-blue);
-  background:var(--btn-blue);
-  color:#fff;
-  font-weight:600;
-  cursor:pointer;
-}
-
-#resetBtn:hover{opacity:.9}
-
-@media(max-width:800px){
-  #searchInput,#locationFilter,#practiceFilter,#resetBtn{
-    flex:1 1 100%;
-  }
-}
-
-.results-count{
-  margin:10px 0 14px;
-  font-size:13px;
-  font-weight:500;
-}
-
-/* =====================
-   CARDS
-===================== */
-.cards{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
-  gap:16px;
-}
-
-.card{
-  background:var(--card);
+/* ---------- Controls ---------- */
+.controls{
+  margin-top:18px;
+  background:var(--panel);
   border:1px solid var(--border);
-  border-radius:14px;
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
   padding:14px;
-  box-shadow:
-    0 1px 2px rgba(0,0,0,.04),
-    0 3px 6px rgba(0,0,0,.03);
 }
 
-.card h3{
-  margin:0 0 6px;
-  font-size:16px;
+.controls-top{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
 }
 
-/* Product / Service text */
-.desc{
+/* 🔑 KEY FIX: unified control sizing */
+.input,
+.select,
+.btn{
+  height:42px;
+  min-height:42px;
+  padding:0 12px;
   font-size:14px;
-  line-height:1.45;
-  white-space:pre-wrap;
+  border-radius:8px;
+  border:1px solid #7d7d7d;
+  background:#fff;
+  box-sizing:border-box;
 }
 
-/* Micro-polish: slightly emphasise first line */
-.desc::first-line{
-  font-weight:500;
+/* Remove browser quirks */
+.input{
+  flex:1 1 360px;
+  appearance:none;
+  -webkit-appearance:none;
+  line-height:40px;
 }
 
-/* =====================
-   PILLS
-===================== */
-.pill{
-  display:inline-block;
-  padding:4px 10px;
-  font-size:12px;
-  border-radius:999px;
-  margin:4px 6px 0 0;
+.select{
+  flex:0 1 220px;
+  appearance:none;
+  -webkit-appearance:none;
+}
+
+.btn{
+  background:var(--btn);
+  color:#fff;
+  border-color:var(--btn);
+  font-weight:700;
   cursor:pointer;
 }
 
-.pill.category{
-  background:var(--blue-bg);
-  border:1px solid var(--blue-border);
-  color:var(--blue-text);
+.btn:hover{
+  background:var(--btn-dark);
 }
 
-.pill.practice{
-  background:var(--green-bg);
-  border:1px solid var(--green-border);
-  color:var(--green-text);
-}
-
-/* =====================
-   CONTACT & LINKS
-===================== */
-.contact{
+.meta{
   margin-top:10px;
   font-size:13px;
-}
-
-.contact-row{
-  display:flex;
-  gap:8px;
-  margin-top:4px;
-}
-
-.icon{width:16px;opacity:.8}
-
-.contact a{
-  font-size:13px;
-  color:#1a73e8;
-  text-decoration:none;
-}
-
-.contact a:hover{text-decoration:underline}
-
-/* =====================
-   NOTES
-===================== */
-.notes{
-  margin-top:10px;
-  padding-top:8px;
-  border-top:1px solid #eee;
-  font-style:italic;
-  font-size:13px;
-  color:#777;
-}
-
-/* =====================
-   FOOTER
-===================== */
-.footer{
-  margin-top:22px;
-  text-align:center;
-  font-size:12px;
   color:var(--muted);
 }
 
-/* =====================
-   PRINT MODE
-===================== */
-@media print{
-  body,.container{background:#fff}
-  .filters,.results-count,#resetBtn{display:none}
-  .cards{display:block}
-  .card{page-break-inside:avoid;border-radius:0;box-shadow:none}
-  .pill{background:none;border:none;color:#000;padding:0}
-  .icon{display:none}
-  a[href]:after{
-    content:" (" attr(href) ")";
-    font-size:9pt;
-    color:#555;
-  }
+/* ---------- Grid ---------- */
+.grid{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+}
+
+@media(max-width:900px){
+  .grid{ grid-template-columns:repeat(2,1fr); }
+}
+@media(max-width:600px){
+  .grid{ grid-template-columns:1fr; }
+}
+
+/* ---------- Card ---------- */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:14px;
+}
+
+.name{
+  font-weight:800;
+  margin-bottom:8px;
+}
+
+/* Product bullets */
+.bullets{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+}
+.bullet{
+  display:grid;
+  grid-template-columns:14px 1fr;
+  gap:6px;
+  font-size:13.5px;
+  line-height:1.42;
+}
+.chev{ font-weight:700; }
+
+/* Pills */
+.pills{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-bottom:8px;
+}
+.pill{
+  font-size:12px;
+  padding:3px 9px;
+  border-radius:999px;
+  border:1px solid transparent;
+  cursor:pointer;
+}
+.pill.blue{
+  background:var(--blue-bg);
+  border-color:var(--blue-bd);
+  color:var(--blue-tx);
+}
+.pill.green{
+  background:var(--green-bg);
+  border-color:var(--green-bd);
+  color:var(--green-tx);
+}
+
+/* Links */
+.links{
+  border-top:1px solid #e5e5e5;
+  padding-top:8px;
+  font-size:12.5px;
+}
+.linkrow{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+}
+.linkrow a{
+  color:#0b59d1;
+  word-break:break-word;
+  font-size:12.5px;
+}
+
+/* Notes */
+.notes{
+  border-top:1px solid #e5e5e5;
+  margin-top:8px;
+  padding-top:8px;
+  font-size:12.5px;
+  font-style:italic;
+  color:#7a7a7a;
+}
+
+/* Footer */
+footer{
+  margin-top:18px;
+  text-align:center;
+  font-size:12.5px;
+  color:var(--muted);
 }
 </style>
 </head>
 
 <body>
-<div class="container">
+<div class="wrap">
+
+<header>
   <h1>CEH Sustainable Consumer Guide</h1>
-  <div id="slogan">Loading…</div>
+  <div class="slogan">Waste is a design flaw.</div>
+</header>
 
-  <div class="filters">
-    <input id="searchInput" placeholder="Search name, product, category or practice…">
-    <select id="locationFilter"><option value="">All locations</option></select>
-    <select id="practiceFilter"><option value="">All practices</option></select>
-    <button id="resetBtn">Reset filters</button>
+<div class="controls">
+  <div class="controls-top">
+    <input class="input" placeholder="Search name, product, category or practice…">
+    <select class="select"><option>All locations</option></select>
+    <select class="select"><option>All practices</option></select>
+    <button class="btn">Reset filters</button>
   </div>
-
-  <div class="results-count" id="resultsCount"></div>
-  <div class="cards" id="cards"></div>
-
-  <div class="footer" id="lastUpdated"></div>
+  <div class="meta">Showing 55 of 55 results</div>
 </div>
 
-<script>
-/* =====================
-   CONFIG
-===================== */
-const SHEET_ID="1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
-const DATA_GID="2076497318";
-const SLOGAN_GID="435440157";
+<div class="grid">
 
-const DATA_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${DATA_GID}`;
-const SLOGAN_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SLOGAN_GID}`;
+  <!-- Sample card to show layout only -->
+  <div class="card">
+    <div class="name">The Honey Pot, Huonville</div>
 
-let all=[],filtered=[];
-let search="",loc="",prac="",cat="";
+    <div class="bullets">
+      <div class="bullet"><div class="chev">&gt;</div><div>Offers a wide selection of products in glass jars or reusable containers.</div></div>
+      <div class="bullet"><div class="chev">&gt;</div><div>Numerous sweet and savoury honey-related products.</div></div>
+    </div>
 
-/* =====================
-   HELPERS
-===================== */
-const norm=s=>(s||"").trim();
-const split=s=>[...new Set(norm(s).split(",").map(x=>x.trim()).filter(Boolean))];
-const urls=t=>(t.match(/\b(https?:\/\/|www\.)\S+/gi)||[]).map(u=>u.startsWith("http")?u:`https://${u}`);
-const mapLink=(a,g)=>g?`https://maps.google.com/?q=${encodeURIComponent(g)}`:
-  a?`https://maps.google.com/?q=${encodeURIComponent(a)}`:"";
+    <div class="pills">
+      <span class="pill blue">Food &amp; Drink</span>
+      <span class="pill blue">New-Retail</span>
+    </div>
 
-/* Format Product / Service text */
-function formatProductService(text){
-  if(!text) return "";
-  const sentences = text
-    .split(/\. +/)
-    .map(s=>s.trim())
-    .filter(Boolean)
-    .map(s=>s.endsWith(".")?s:s+".");
-  return sentences.map(s=>`> ${s}`).join("\n");
-}
+    <div class="pills">
+      <span class="pill green">Refill</span>
+      <span class="pill green">Seasonal-products</span>
+    </div>
 
-/* =====================
-   SLOGANS (Row 4–16)
-===================== */
-let slogans=[],si=0,st;
-Papa.parse(SLOGAN_URL,{
-  download:true,
-  complete:r=>{
-    slogans=r.data.slice(3,16).map(x=>({
-      t:norm(x[0]),u:norm(x[1]),s:+x[2]||5
-    })).filter(x=>x.t);
-    rotate();
-  }
-});
+    <div class="links">
+      <div class="linkrow">🔗 <a href="#">https://thehoney-pot.com</a></div>
+      <div class="linkrow">📞 0475 893 506</div>
+      <div class="linkrow">📍 2273 Huon Highway, Huonville</div>
+    </div>
 
-function rotate(){
-  if(!slogans.length)return;
-  const s=slogans[si];
-  slogan.innerHTML=s.u?`<a href="${s.u}" target="_blank">${s.t}</a>`:s.t;
-  clearTimeout(st);
-  st=setTimeout(()=>{si=(si+1)%slogans.length;rotate()},s.s*1000);
-}
+    <div class="notes">There is a second shop on Bruny Island.</div>
+  </div>
 
-/* =====================
-   DATA
-===================== */
-Papa.parse(DATA_URL,{
-  download:true,
-  header:true,
-  complete:r=>{
-    all=r.data.filter(x=>!x.Status||x.Status==="Active");
-    all.sort((a,b)=>Date.parse(b.Date||0)-Date.parse(a.Date||0));
-    buildFilters();
-    apply();
-    lastUpdated.textContent=
-      "Data last updated: "+
-      new Date(Math.max(...all.map(x=>Date.parse(x.Date)||0)))
-      .toLocaleDateString();
-  }
-});
+</div>
 
-function buildFilters(){
-  const L=new Set(),P=new Set();
-  all.forEach(r=>{
-    split(r.Location).forEach(x=>L.add(x));
-    split(r.Practices).forEach(x=>P.add(x));
-  });
-  locationFilter.innerHTML='<option value="">All locations</option>'+
-    [...L].sort().map(x=>`<option>${x}</option>`).join("");
-  practiceFilter.innerHTML='<option value="">All practices</option>'+
-    [...P].sort().map(x=>`<option>${x}</option>`).join("");
-}
+<footer>
+  Data last updated: 24/01/2026
+</footer>
 
-/* =====================
-   RENDER
-===================== */
-function apply(){
-  filtered=all.filter(r=>{
-    const h=(r.Name+r["Product/Service"]+r.Category+r.Practices).toLowerCase();
-    if(search&&!h.includes(search))return false;
-    if(loc&&!split(r.Location).includes(loc))return false;
-    if(prac&&!split(r.Practices).includes(prac))return false;
-    if(cat&&!split(r.Category).includes(cat))return false;
-    return true;
-  });
-
-  resultsCount.textContent=`Showing ${filtered.length} of ${all.length} results`;
-  cards.innerHTML="";
-
-  filtered.forEach(r=>{
-    const c=document.createElement("div");
-    c.className="card";
-
-    c.innerHTML=`<h3>${r.Name}</h3>
-      <div class="desc">${formatProductService(norm(r["Product/Service"]))}</div>`;
-
-    split(r.Category).forEach(x=>{
-      c.innerHTML+=`<span class="pill category" onclick="cat='${x}';apply()">${x}</span>`;
-    });
-
-    split(r.Practices).forEach(x=>{
-      c.innerHTML+=`<span class="pill practice" onclick="prac='${x}';practiceFilter.value='${x}';apply()">${x}</span>`;
-    });
-
-    const con=document.createElement("div");
-    con.className="contact";
-
-    urls(r.Website).forEach(u=>{
-      con.innerHTML+=`<div class="contact-row"><span class="icon">🔗</span><a href="${u}" target="_blank">${u}</a></div>`;
-    });
-
-    if(r.Phone)con.innerHTML+=`<div class="contact-row"><span class="icon">📞</span>${r.Phone}</div>`;
-    if(r.Email)con.innerHTML+=`<div class="contact-row"><span class="icon">✉️</span>${r.Email}</div>`;
-    if(r.Address||r.Geolocation){
-      const m=mapLink(r.Address,r.Geolocation);
-      con.innerHTML+=`<div class="contact-row"><span class="icon">📍</span><a href="${m}" target="_blank">${r.Address||r.Geolocation}</a></div>`;
-    }
-
-    if(con.innerHTML)c.appendChild(con);
-    if(r.Notes)c.innerHTML+=`<div class="notes">${r.Notes}</div>`;
-
-    cards.appendChild(c);
-  });
-}
-
-/* =====================
-   EVENTS
-===================== */
-searchInput.oninput=e=>{search=e.target.value.toLowerCase();apply()}
-locationFilter.onchange=e=>{loc=e.target.value;apply()}
-practiceFilter.onchange=e=>{prac=e.target.value;apply()}
-resetBtn.onclick=()=>{search=loc=prac=cat="";searchInput.value="";locationFilter.value="";practiceFilter.value="";apply()}
-</script>
+</div>
 </body>
 </html>
