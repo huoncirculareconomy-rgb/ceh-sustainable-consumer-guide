@@ -25,6 +25,8 @@
   --green-bd:#b9e2c2;
   --green-tx:#1a6b2f;
 
+  --active:#000;
+
   --btn:#1f66d1;
   --btn-dark:#154ea3;
 }
@@ -136,7 +138,6 @@ h1{
   grid-template-columns:14px 1fr;
   gap:6px;
   font-size:13.5px;
-  line-height:1.42;
 }
 
 .chev{ font-weight:700; }
@@ -153,6 +154,8 @@ h1{
   padding:3px 9px;
   border-radius:999px;
   border:1px solid transparent;
+  background:none;
+  cursor:pointer;
 }
 
 .pill.blue{
@@ -167,20 +170,15 @@ h1{
   color:var(--green-tx);
 }
 
+.pill.active{
+  outline:2px solid var(--active);
+  font-weight:700;
+}
+
 .links{
   border-top:1px solid #e5e5e5;
   padding-top:8px;
   font-size:12.5px;
-}
-
-.linkrow{
-  display:flex;
-  gap:8px;
-}
-
-.linkrow a{
-  color:#0b59d1;
-  word-break:break-word;
 }
 
 .notes{
@@ -218,32 +216,26 @@ footer{
 </div>
 
 <div class="grid" id="cards"></div>
-
 <footer id="updated"></footer>
 
 </div>
 
 <script>
-/* ========= DATA SOURCES ========= */
+/* ========= DATA ========= */
 
 const DATA_CSV =
-  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export" +
-  "?format=csv&gid=2076497318";
+  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
 
-/*
-  SLOGANS:
-  - Uses raw CSV export (no gviz)
-  - Spreadsheet rows 4–16
-  - Columns: A = text, B = URL, C = seconds
-*/
 const SLOGAN_CSV =
-  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export" +
-  "?format=csv&gid=435440157";
+  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=435440157";
 
-/* ========= GLOBALS ========= */
+/* ========= STATE ========= */
 
 let allData = [];
 let filtered = [];
+
+let activeCategories = new Set();
+let activePractices = new Set();
 
 /* ========= HELPERS ========= */
 
@@ -251,29 +243,20 @@ const splitClean = v =>
   v ? v.split(",").map(x => x.trim()).filter(Boolean) : [];
 
 const bulletise = text =>
-  text
-    ? text.split(".")
-      .map(t => t.trim())
-      .filter(Boolean)
-      .map(t => `
-        <div class="bullet">
-          <div class="chev">&gt;</div>
-          <div>${t}.</div>
-        </div>
-      `).join("")
-    : "";
+  text ? text.split(".").map(t=>t.trim()).filter(Boolean)
+    .map(t=>`
+      <div class="bullet">
+        <div class="chev">&gt;</div>
+        <div>${t}.</div>
+      </div>`).join("") : "";
 
-const onlyLinks = text =>
-  splitClean(text).filter(v => v.startsWith("http"));
-
-/* ========= LOAD MAIN DATA ========= */
+/* ========= LOAD DATA ========= */
 
 Papa.parse(DATA_CSV,{
   download:true,
   header:true,
   complete:r=>{
-    allData = r.data.filter(x => x.Name && x["Product/Service"]);
-    allData.sort((a,b)=>new Date(b.Date)-new Date(a.Date));
+    allData = r.data.filter(x => x.Name);
     buildFilters();
     applyFilters();
     updated.textContent =
@@ -283,23 +266,6 @@ Papa.parse(DATA_CSV,{
 
 /* ========= FILTERS ========= */
 
-function buildFilters(){
-  const loc = new Set(), prac = new Set();
-
-  allData.forEach(r=>{
-    splitClean(r.Location).forEach(x=>loc.add(x));
-    splitClean(r.Practices).forEach(x=>prac.add(x));
-  });
-
-  locationFilter.innerHTML =
-    `<option value="">All locations</option>` +
-    [...loc].sort().map(x=>`<option>${x}</option>`).join("");
-
-  practiceFilter.innerHTML =
-    `<option value="">All practices</option>` +
-    [...prac].sort().map(x=>`<option>${x}</option>`).join("");
-}
-
 search.oninput =
 locationFilter.onchange =
 practiceFilter.onchange = applyFilters;
@@ -308,16 +274,36 @@ function resetFilters(){
   search.value="";
   locationFilter.value="";
   practiceFilter.value="";
+  activeCategories.clear();
+  activePractices.clear();
+  applyFilters();
+}
+
+function togglePill(type,value){
+  const set = type==="category" ? activeCategories : activePractices;
+  set.has(value) ? set.delete(value) : set.add(value);
   applyFilters();
 }
 
 function applyFilters(){
   const q = search.value.toLowerCase();
+
   filtered = allData.filter(r=>{
     if(locationFilter.value && !r.Location?.includes(locationFilter.value)) return false;
     if(practiceFilter.value && !r.Practices?.includes(practiceFilter.value)) return false;
+
+    const cats = splitClean(r.Category);
+    const pracs = splitClean(r.Practices);
+
+    if(activeCategories.size &&
+       !cats.some(c=>activeCategories.has(c))) return false;
+
+    if(activePractices.size &&
+       !pracs.some(p=>activePractices.has(p))) return false;
+
     return JSON.stringify(r).toLowerCase().includes(q);
   });
+
   render();
 }
 
@@ -330,21 +316,18 @@ function render(){
       <div class="bullets">${bulletise(r["Product/Service"])}</div>
 
       <div class="pills">
-        ${splitClean(r.Category).map(c=>`<span class="pill blue">${c}</span>`).join("")}
+        ${splitClean(r.Category).map(c=>`
+          <button class="pill blue ${activeCategories.has(c)?"active":""}"
+            onclick="togglePill('category','${c.replace(/'/g,"&#39;")}')">${c}</button>
+        `).join("")}
       </div>
 
       <div class="pills">
-        ${splitClean(r.Practices).map(p=>`<span class="pill green">${p}</span>`).join("")}
+        ${splitClean(r.Practices).map(p=>`
+          <button class="pill green ${activePractices.has(p)?"active":""}"
+            onclick="togglePill('practice','${p.replace(/'/g,"&#39;")}')">${p}</button>
+        `).join("")}
       </div>
-
-      <div class="links">
-        ${onlyLinks(r.Website).map(l=>`<div class="linkrow">🔗 <a href="${l}" target="_blank">${l}</a></div>`).join("")}
-        ${r.Phone?`<div class="linkrow">📞 ${r.Phone}</div>`:""}
-        ${r.Email?`<div class="linkrow">✉️ <a href="mailto:${r.Email}">${r.Email}</a></div>`:""}
-        ${r.Address?`<div class="linkrow">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(r.Address)}" target="_blank">${r.Address}</a></div>`:""}
-      </div>
-
-      ${r.Notes?`<div class="notes">${r.Notes}</div>`:""}
     </div>
   `).join("");
 
@@ -356,21 +339,15 @@ function render(){
 
 Papa.parse(SLOGAN_CSV,{
   download:true,
-  header:false,
   complete:r=>{
-    // Spreadsheet rows 4–16 (0-based slice)
-    const rows = r.data.slice(3,16).filter(x => x[0]);
-    let i = 0;
-
-    const show = () => {
-      const [txt,url,sec] = rows[i];
-      slogan.innerHTML = url
-        ? `<a href="${url}" target="_blank">${txt}</a>`
-        : txt;
-      i = (i + 1) % rows.length;
-      setTimeout(show,(Number(sec)||4)*1000);
+    const rows = r.data.slice(3,16).filter(x=>x[0]);
+    let i=0;
+    const show=()=>{
+      const [txt,url,sec]=rows[i];
+      slogan.innerHTML=url?`<a href="${url}" target="_blank">${txt}</a>`:txt;
+      i=(i+1)%rows.length;
+      setTimeout(show,(+sec||4)*1000);
     };
-
     if(rows.length) show();
   }
 });
