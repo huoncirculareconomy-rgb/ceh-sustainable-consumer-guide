@@ -5,402 +5,306 @@
 <title>CEH Sustainable Consumer Guide</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-
 <style>
-/* =====================
-   BASE STYLES
-===================== */
-:root{
-  --bg:#f3f1ec;
-  --panel:#f8f7f4;
-  --card:#fbfaf8;
-  --border:#ddd;
-  --text:#24323f;
-  --muted:#666;
-  --title:#2f8f5b;
-
-  --blue-bg:#e6f0ff;
-  --blue-border:#bcd2ff;
-  --blue-text:#2457c5;
-
-  --green-bg:#e7f5ea;
-  --green-border:#bfe3cc;
-  --green-text:#1b7f4d;
-
-  --btn-blue:#1a73e8;
-}
-
+/* ---------- Base ---------- */
 body{
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  background:#f8f6ef;
   margin:0;
-  font-family: system-ui, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  color:#1f2937;
 }
-
 .container{
   max-width:1200px;
-  margin:0 auto;
-  padding:20px 14px 30px;
-  background:var(--panel);
-  border-radius:14px;
+  margin:auto;
+  padding:20px;
 }
-
-/* =====================
-   HEADER
-===================== */
 h1{
-  margin:0;
   text-align:center;
-  color:var(--title);
-  font-size:40px;
+  color:#2f855a;
+  margin-bottom:6px;
 }
-
 #slogan{
   text-align:center;
   font-style:italic;
-  color:#444;
-  margin:8px auto 18px;
-  max-width:720px;
-  min-height:1.4em;
+  margin-bottom:20px;
 }
 
-/* =====================
-   FILTERS
-===================== */
+/* ---------- Filters ---------- */
 .filters{
   display:flex;
   flex-wrap:wrap;
   gap:10px;
-  padding-bottom:12px;
-  border-bottom:1px solid #e0e0e0;
+  align-items:center;
 }
-
 .filters input,
 .filters select{
   height:42px;
-  padding:8px 12px;
+  line-height:42px;
+  padding:0 12px;
   font-size:14px;
-  border:1px solid #777;
-  background:#fff;
+  border:1px solid #ccc;
+  border-radius:6px;
+  box-sizing:border-box;
 }
-
-#searchInput{flex:1 1 420px;}
-#locationFilter,#practiceFilter{flex:0 0 220px;}
+.filters input{flex:1 1 300px;}
+.filters select{flex:0 0 180px;}
 
 #resetBtn{
-  height:42px;
-  padding:0 14px;
-  border-radius:6px;
-  border:1px solid var(--btn-blue);
-  background:var(--btn-blue);
+  background:#2563eb;
   color:#fff;
-  font-weight:600;
+  border:none;
+  padding:10px 14px;
+  border-radius:6px;
   cursor:pointer;
 }
-
-#resetBtn:hover{opacity:.9}
-
-@media(max-width:800px){
-  #searchInput,#locationFilter,#practiceFilter,#resetBtn{
-    flex:1 1 100%;
-  }
-}
+#resetBtn:hover{background:#1d4ed8}
 
 .results-count{
-  margin:10px 0 14px;
-  font-size:13px;
-  font-weight:500;
+  margin:10px 0;
+  font-size:14px;
 }
 
-/* =====================
-   CARDS
-===================== */
+/* ---------- Cards ---------- */
 .cards{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
   gap:16px;
 }
-
 .card{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:14px;
+  background:#fff;
+  border-radius:10px;
   padding:14px;
-  box-shadow:
-    0 1px 2px rgba(0,0,0,.04),
-    0 3px 6px rgba(0,0,0,.03);
+  border:1px solid #e5e7eb;
 }
-
+.card.featured{
+  border:2px solid #2563eb;
+  background:#eef2ff;
+}
 .card h3{
-  margin:0 0 6px;
-  font-size:16px;
+  margin-top:0;
 }
 
-/* Product / Service text */
+/* ---------- Description ---------- */
 .desc{
   font-size:14px;
-  line-height:1.45;
-  white-space:pre-wrap;
+  line-height:1.5;
+}
+.desc-line{
+  display:block;
+  padding-left:1.2em;
+  text-indent:-1.2em;
+  margin-bottom:4px;
 }
 
-/* Micro-polish: slightly emphasise first line */
-.desc::first-line{
-  font-weight:500;
-}
-
-/* =====================
-   PILLS
-===================== */
+/* ---------- Pills ---------- */
 .pill{
   display:inline-block;
   padding:4px 10px;
-  font-size:12px;
+  margin:4px 4px 0 0;
   border-radius:999px;
-  margin:4px 6px 0 0;
+  font-size:12px;
   cursor:pointer;
+  user-select:none;
 }
-
 .pill.category{
-  background:var(--blue-bg);
-  border:1px solid var(--blue-border);
-  color:var(--blue-text);
+  background:#e0ecff;
+  color:#1d4ed8;
+  border:1px solid #bfdbfe;
 }
-
 .pill.practice{
-  background:var(--green-bg);
-  border:1px solid var(--green-border);
-  color:var(--green-text);
+  background:#e7f6eb;
+  color:#166534;
+  border:1px solid #bbf7d0;
 }
 
-/* =====================
-   CONTACT & LINKS
-===================== */
-.contact{
-  margin-top:10px;
+/* ---------- Links ---------- */
+.links{
+  margin-top:8px;
   font-size:13px;
 }
-
-.contact-row{
-  display:flex;
-  gap:8px;
-  margin-top:4px;
+.links div{
+  margin:2px 0;
 }
-
-.icon{width:16px;opacity:.8}
-
-.contact a{
-  font-size:13px;
-  color:#1a73e8;
+.links a{
+  color:#2563eb;
   text-decoration:none;
 }
+.links a:hover{text-decoration:underline}
 
-.contact a:hover{text-decoration:underline}
-
-/* =====================
-   NOTES
-===================== */
+/* ---------- Notes ---------- */
 .notes{
-  margin-top:10px;
-  padding-top:8px;
-  border-top:1px solid #eee;
-  font-style:italic;
+  margin-top:8px;
+  padding-top:6px;
+  border-top:1px solid #e5e7eb;
   font-size:13px;
-  color:#777;
+  font-style:italic;
+  color:#6b7280;
 }
 
-/* =====================
-   FOOTER
-===================== */
-.footer{
-  margin-top:22px;
-  text-align:center;
-  font-size:12px;
-  color:var(--muted);
-}
-
-/* =====================
-   PRINT MODE
-===================== */
+/* ---------- Print ---------- */
 @media print{
-  body,.container{background:#fff}
   .filters,.results-count,#resetBtn{display:none}
-  .cards{display:block}
-  .card{page-break-inside:avoid;border-radius:0;box-shadow:none}
-  .pill{background:none;border:none;color:#000;padding:0}
-  .icon{display:none}
-  a[href]:after{
-    content:" (" attr(href) ")";
-    font-size:9pt;
-    color:#555;
-  }
+  body{background:#fff}
+  .card{page-break-inside:avoid}
 }
 </style>
 </head>
 
 <body>
 <div class="container">
-  <h1>CEH Sustainable Consumer Guide</h1>
-  <div id="slogan">Loading…</div>
 
-  <div class="filters">
-    <input id="searchInput" placeholder="Search name, product, category or practice…">
-    <select id="locationFilter"><option value="">All locations</option></select>
-    <select id="practiceFilter"><option value="">All practices</option></select>
-    <button id="resetBtn">Reset filters</button>
-  </div>
+<h1>CEH Sustainable Consumer Guide</h1>
+<div id="slogan"></div>
 
-  <div class="results-count" id="resultsCount"></div>
-  <div class="cards" id="cards"></div>
+<div class="filters">
+  <input id="search" placeholder="Search name, product, category or practice…">
+  <select id="locationFilter"><option value="">All locations</option></select>
+  <select id="practiceFilter"><option value="">All practices</option></select>
+  <button id="resetBtn">Reset filters</button>
+</div>
 
-  <div class="footer" id="lastUpdated"></div>
+<div class="results-count" id="count"></div>
+<div class="cards" id="cards"></div>
+
+<div style="margin-top:30px;font-size:12px;color:#6b7280;text-align:center" id="updated"></div>
+
 </div>
 
 <script>
-/* =====================
-   CONFIG
-===================== */
-const SHEET_ID="1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
-const DATA_GID="2076497318";
-const SLOGAN_GID="435440157";
+/* ---------- CONFIG ---------- */
+const DATA_CSV =
+"https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
 
-const DATA_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${DATA_GID}`;
-const SLOGAN_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SLOGAN_GID}`;
+const SLOGAN_CSV =
+"https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=435440157";
 
-let all=[],filtered=[];
-let search="",loc="",prac="",cat="";
-
-/* =====================
-   HELPERS
-===================== */
-const norm=s=>(s||"").trim();
-const split=s=>[...new Set(norm(s).split(",").map(x=>x.trim()).filter(Boolean))];
-const urls=t=>(t.match(/\b(https?:\/\/|www\.)\S+/gi)||[]).map(u=>u.startsWith("http")?u:`https://${u}`);
-const mapLink=(a,g)=>g?`https://maps.google.com/?q=${encodeURIComponent(g)}`:
-  a?`https://maps.google.com/?q=${encodeURIComponent(a)}`:"";
-
-/* Format Product / Service text */
-function formatProductService(text){
+/* ---------- HELPERS ---------- */
+function splitCSV(v){
+  return v? v.split(",").map(s=>s.trim()).filter(Boolean):[];
+}
+function onlyLinks(text){
+  if(!text) return [];
+  return text.split(",").map(s=>s.trim()).filter(s=>s.startsWith("http"));
+}
+function formatDesc(text){
   if(!text) return "";
-  const sentences = text
-    .split(/\. +/)
-    .map(s=>s.trim())
-    .filter(Boolean)
-    .map(s=>s.endsWith(".")?s:s+".");
-  return sentences.map(s=>`> ${s}`).join("\n");
+  return text.split(/\. +/).filter(Boolean).map(s=>{
+    if(!s.endsWith(".")) s+=".";
+    return `<span class="desc-line">&gt; ${s}</span>`;
+  }).join("");
+}
+function mapsLink(addr){
+  return addr?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`:"";
 }
 
-/* =====================
-   SLOGANS (Row 4–16)
-===================== */
-let slogans=[],si=0,st;
-Papa.parse(SLOGAN_URL,{
-  download:true,
-  complete:r=>{
-    slogans=r.data.slice(3,16).map(x=>({
-      t:norm(x[0]),u:norm(x[1]),s:+x[2]||5
-    })).filter(x=>x.t);
-    rotate();
-  }
+/* ---------- LOAD DATA ---------- */
+let rows=[];
+fetch(DATA_CSV).then(r=>r.text()).then(t=>{
+  const [head,...lines]=t.split("\n").map(r=>r.split(","));
+  rows=lines.map(l=>{
+    const o={};
+    head.forEach((h,i)=>o[h.trim()]=l[i]?.trim());
+    return o;
+  });
+  initFilters();
+  render();
+  document.getElementById("updated").textContent=
+    "Data last updated: "+new Date().toLocaleDateString();
 });
 
-function rotate(){
-  if(!slogans.length)return;
-  const s=slogans[si];
-  slogan.innerHTML=s.u?`<a href="${s.u}" target="_blank">${s.t}</a>`:s.t;
-  clearTimeout(st);
-  st=setTimeout(()=>{si=(si+1)%slogans.length;rotate()},s.s*1000);
-}
-
-/* =====================
-   DATA
-===================== */
-Papa.parse(DATA_URL,{
-  download:true,
-  header:true,
-  complete:r=>{
-    all=r.data.filter(x=>!x.Status||x.Status==="Active");
-    all.sort((a,b)=>Date.parse(b.Date||0)-Date.parse(a.Date||0));
-    buildFilters();
-    apply();
-    lastUpdated.textContent=
-      "Data last updated: "+
-      new Date(Math.max(...all.map(x=>Date.parse(x.Date)||0)))
-      .toLocaleDateString();
-  }
-});
-
-function buildFilters(){
-  const L=new Set(),P=new Set();
-  all.forEach(r=>{
-    split(r.Location).forEach(x=>L.add(x));
-    split(r.Practices).forEach(x=>P.add(x));
+/* ---------- FILTERS ---------- */
+function initFilters(){
+  const loc=new Set(), prac=new Set();
+  rows.forEach(r=>{
+    splitCSV(r.Location).forEach(l=>loc.add(l));
+    splitCSV(r.Practices).forEach(p=>prac.add(p));
   });
-  locationFilter.innerHTML='<option value="">All locations</option>'+
-    [...L].sort().map(x=>`<option>${x}</option>`).join("");
-  practiceFilter.innerHTML='<option value="">All practices</option>'+
-    [...P].sort().map(x=>`<option>${x}</option>`).join("");
-}
-
-/* =====================
-   RENDER
-===================== */
-function apply(){
-  filtered=all.filter(r=>{
-    const h=(r.Name+r["Product/Service"]+r.Category+r.Practices).toLowerCase();
-    if(search&&!h.includes(search))return false;
-    if(loc&&!split(r.Location).includes(loc))return false;
-    if(prac&&!split(r.Practices).includes(prac))return false;
-    if(cat&&!split(r.Category).includes(cat))return false;
-    return true;
+  loc.forEach(l=>{
+    locationFilter.add(new Option(l,l));
   });
+  prac.forEach(p=>{
+    practiceFilter.add(new Option(p,p));
+  });
+}
+search.oninput=render;
+locationFilter.onchange=render;
+practiceFilter.onchange=render;
+resetBtn.onclick=()=>{
+  search.value="";
+  locationFilter.value="";
+  practiceFilter.value="";
+  render();
+};
 
-  resultsCount.textContent=`Showing ${filtered.length} of ${all.length} results`;
+/* ---------- RENDER ---------- */
+function render(){
+  const q=search.value.toLowerCase();
+  const loc=locationFilter.value;
+  const prac=practiceFilter.value;
   cards.innerHTML="";
+  let shown=0;
 
-  filtered.forEach(r=>{
-    const c=document.createElement("div");
-    c.className="card";
+  rows.forEach(r=>{
+    if(r.Status && r.Status!=="Approved") return;
+    if(loc && !splitCSV(r.Location).includes(loc)) return;
+    if(prac && !splitCSV(r.Practices).includes(prac)) return;
+    if(q && !JSON.stringify(r).toLowerCase().includes(q)) return;
 
-    c.innerHTML=`<h3>${r.Name}</h3>
-      <div class="desc">${formatProductService(norm(r["Product/Service"]))}</div>`;
+    shown++;
 
-    split(r.Category).forEach(x=>{
-      c.innerHTML+=`<span class="pill category" onclick="cat='${x}';apply()">${x}</span>`;
-    });
+    const featured = (r.Featured||"").toLowerCase()==="yes";
 
-    split(r.Practices).forEach(x=>{
-      c.innerHTML+=`<span class="pill practice" onclick="prac='${x}';practiceFilter.value='${x}';apply()">${x}</span>`;
-    });
+    const card=document.createElement("div");
+    card.className="card"+(featured?" featured":"");
+    card.innerHTML=`
+      <h3>${r.Name||""}</h3>
+      <div class="desc">${formatDesc(r["Product/Service"])}</div>
 
-    const con=document.createElement("div");
-    con.className="contact";
+      ${splitCSV(r.Category).map(c=>
+        `<span class="pill category" onclick="applyCategory('${c}')">${c}</span>`
+      ).join("")}
 
-    urls(r.Website).forEach(u=>{
-      con.innerHTML+=`<div class="contact-row"><span class="icon">🔗</span><a href="${u}" target="_blank">${u}</a></div>`;
-    });
+      ${splitCSV(r.Practices).map(p=>
+        `<span class="pill practice" onclick="applyPractice('${p}')">${p}</span>`
+      ).join("")}
 
-    if(r.Phone)con.innerHTML+=`<div class="contact-row"><span class="icon">📞</span>${r.Phone}</div>`;
-    if(r.Email)con.innerHTML+=`<div class="contact-row"><span class="icon">✉️</span>${r.Email}</div>`;
-    if(r.Address||r.Geolocation){
-      const m=mapLink(r.Address,r.Geolocation);
-      con.innerHTML+=`<div class="contact-row"><span class="icon">📍</span><a href="${m}" target="_blank">${r.Address||r.Geolocation}</a></div>`;
-    }
+      <div class="links">
+        ${onlyLinks(r.Website).map(u=>`<div>🔗 <a href="${u}" target="_blank">${u}</a></div>`).join("")}
+        ${r.Phone?`<div>📞 ${r.Phone}</div>`:""}
+        ${r.Email?`<div>✉️ <a href="mailto:${r.Email}">${r.Email}</a></div>`:""}
+        ${r.Address?`<div>📍 <a href="${mapsLink(r.Address)}" target="_blank">${r.Address}</a></div>`:""}
+      </div>
 
-    if(con.innerHTML)c.appendChild(con);
-    if(r.Notes)c.innerHTML+=`<div class="notes">${r.Notes}</div>`;
-
-    cards.appendChild(c);
+      ${r.Notes?`<div class="notes">${r.Notes}</div>`:""}
+    `;
+    cards.appendChild(card);
   });
+
+  count.textContent=`Showing ${shown} of ${rows.length} results`;
 }
 
-/* =====================
-   EVENTS
-===================== */
-searchInput.oninput=e=>{search=e.target.value.toLowerCase();apply()}
-locationFilter.onchange=e=>{loc=e.target.value;apply()}
-practiceFilter.onchange=e=>{prac=e.target.value;apply()}
-resetBtn.onclick=()=>{search=loc=prac=cat="";searchInput.value="";locationFilter.value="";practiceFilter.value="";apply()}
+/* ---------- PILL FILTERS ---------- */
+function applyCategory(c){
+  search.value=c;
+  render();
+}
+function applyPractice(p){
+  practiceFilter.value=p;
+  render();
+}
+
+/* ---------- SLOGANS ---------- */
+fetch(SLOGAN_CSV).then(r=>r.text()).then(t=>{
+  const rows=t.split("\n").slice(3,16).map(r=>r.split(","));
+  let i=0;
+  function rotate(){
+    const [txt,url,sec]=rows[i];
+    slogan.innerHTML=url?`<a href="${url}" target="_blank">${txt}</a>`:txt;
+    i=(i+1)%rows.length;
+    setTimeout(rotate,(parseInt(sec)||5)*1000);
+  }
+  rotate();
+});
 </script>
 </body>
 </html>
