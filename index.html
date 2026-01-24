@@ -25,6 +25,8 @@
   --green-bd:#b9e2c2;
   --green-tx:#1a6b2f;
 
+  --pill-active:#333;
+
   --btn:#1f66d1;
   --btn-dark:#154ea3;
 }
@@ -87,6 +89,7 @@ h1{
   font-weight:700;
   cursor:pointer;
 }
+.btn:hover{ background:var(--btn-dark); }
 
 .grid{
   margin-top:16px;
@@ -158,8 +161,8 @@ h1{
 }
 
 .pill.active{
-  outline:2px solid #000;
-  font-weight:700;
+  box-shadow:0 0 0 1px var(--pill-active);
+  font-weight:600;
 }
 
 footer{
@@ -199,8 +202,8 @@ const DATA_CSV =
 let allData = [];
 let filtered = [];
 
-let activeCategories = new Set();
-let activePractices = new Set();
+let activeCategory = null;
+let activePractice = null;
 
 const splitClean = v =>
   v ? v.split(",").map(x=>x.trim()).filter(Boolean) : [];
@@ -218,14 +221,13 @@ Papa.parse(DATA_CSV,{
   header:true,
   complete:r=>{
     allData = r.data.filter(x => x.Name);
+    allData.sort((a,b)=>new Date(b.Date)-new Date(a.Date));
     buildFilters();
     applyFilters();
     updated.textContent =
       "Data last updated: " + new Date().toLocaleDateString();
   }
 });
-
-/* ===== FILTER DROPDOWNS (RESTORED) ===== */
 
 function buildFilters(){
   const loc = new Set();
@@ -253,14 +255,17 @@ function resetFilters(){
   search.value="";
   locationFilter.value="";
   practiceFilter.value="";
-  activeCategories.clear();
-  activePractices.clear();
+  activeCategory = null;
+  activePractice = null;
   applyFilters();
 }
 
 function togglePill(type,value){
-  const set = type==="category" ? activeCategories : activePractices;
-  set.has(value) ? set.delete(value) : set.add(value);
+  if(type==="category"){
+    activeCategory = activeCategory===value ? null : value;
+  } else {
+    activePractice = activePractice===value ? null : value;
+  }
   applyFilters();
 }
 
@@ -271,11 +276,8 @@ function applyFilters(){
     if(locationFilter.value && !r.Location?.includes(locationFilter.value)) return false;
     if(practiceFilter.value && !r.Practices?.includes(practiceFilter.value)) return false;
 
-    const cats = splitClean(r.Category);
-    const pracs = splitClean(r.Practices);
-
-    if(activeCategories.size && !cats.some(c=>activeCategories.has(c))) return false;
-    if(activePractices.size && !pracs.some(p=>activePractices.has(p))) return false;
+    if(activeCategory && !splitClean(r.Category).includes(activeCategory)) return false;
+    if(activePractice && !splitClean(r.Practices).includes(activePractice)) return false;
 
     return JSON.stringify(r).toLowerCase().includes(q);
   });
@@ -291,14 +293,14 @@ function render(){
 
       <div class="pills">
         ${splitClean(r.Category).map(c=>`
-          <button class="pill blue ${activeCategories.has(c)?"active":""}"
+          <button class="pill blue ${activeCategory===c?"active":""}"
             onclick="togglePill('category','${c.replace(/'/g,"&#39;")}')">${c}</button>
         `).join("")}
       </div>
 
       <div class="pills">
         ${splitClean(r.Practices).map(p=>`
-          <button class="pill green ${activePractices.has(p)?"active":""}"
+          <button class="pill green ${activePractice===p?"active":""}"
             onclick="togglePill('practice','${p.replace(/'/g,"&#39;")}')">${p}</button>
         `).join("")}
       </div>
