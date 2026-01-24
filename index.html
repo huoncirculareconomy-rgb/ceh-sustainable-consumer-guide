@@ -1,310 +1,565 @@
-<!DOCTYPE html>
+<!--
+PURPOSE & FUNCTION (for volunteers)
+This page renders the CEH Sustainable Consumer Guide from two tabs in a Google Sheet:
+1) Directory data (as CSV export) for cards and filters
+2) Slogans tab (as CSV export) for rotating slogan text under the title
+It uses a robust CSV parser (Papa Parse) so commas inside quoted text do NOT break columns.
+It provides search + location/practice filters, clickable category/practice pills, reset button,
+contact/link icons, notes styling, Google Maps address links, “last updated” footer,
+and an optional Featured flag to highlight selected cards.
+
+“Featured” column: add a column named Featured in the directory sheet; set value to “Yes”
+to highlight a card.
+-->
+
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>CEH Sustainable Consumer Guide</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CEH Sustainable Consumer Guide</title>
 
-<style>
-/* ---------- Base ---------- */
-body{
-  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-  background:#f8f6ef;
-  margin:0;
-  color:#1f2937;
-}
-.container{
-  max-width:1200px;
-  margin:auto;
-  padding:20px;
-}
-h1{
-  text-align:center;
-  color:#2f855a;
-  margin-bottom:6px;
-}
-#slogan{
-  text-align:center;
-  font-style:italic;
-  margin-bottom:20px;
-}
+  <!-- Robust CSV parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-/* ---------- Filters ---------- */
-.filters{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  align-items:center;
-}
-.filters input,
-.filters select{
-  height:42px;
-  line-height:42px;
-  padding:0 12px;
-  font-size:14px;
-  border:1px solid #ccc;
-  border-radius:6px;
-  box-sizing:border-box;
-}
-.filters input{flex:1 1 300px;}
-.filters select{flex:0 0 180px;}
+  <style>
+    :root{
+      --bg:#f8f6ef;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --green:#2f855a;
 
-#resetBtn{
-  background:#2563eb;
-  color:#fff;
-  border:none;
-  padding:10px 14px;
-  border-radius:6px;
-  cursor:pointer;
-}
-#resetBtn:hover{background:#1d4ed8}
+      --pill-blue-bg:#e0ecff;
+      --pill-blue-bd:#bfdbfe;
+      --pill-blue-tx:#1d4ed8;
 
-.results-count{
-  margin:10px 0;
-  font-size:14px;
-}
+      --pill-green-bg:#e7f6eb;
+      --pill-green-bd:#bbf7d0;
+      --pill-green-tx:#166534;
 
-/* ---------- Cards ---------- */
-.cards{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
-  gap:16px;
-}
-.card{
-  background:#fff;
-  border-radius:10px;
-  padding:14px;
-  border:1px solid #e5e7eb;
-}
-.card.featured{
-  border:2px solid #2563eb;
-  background:#eef2ff;
-}
-.card h3{
-  margin-top:0;
-}
+      --btn-blue:#2563eb;
+      --btn-blue-hover:#1d4ed8;
+    }
 
-/* ---------- Description ---------- */
-.desc{
-  font-size:14px;
-  line-height:1.5;
-}
-.desc-line{
-  display:block;
-  padding-left:1.2em;
-  text-indent:-1.2em;
-  margin-bottom:4px;
-}
+    body{
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+      background:var(--bg);
+      margin:0;
+      color:var(--text);
+    }
 
-/* ---------- Pills ---------- */
-.pill{
-  display:inline-block;
-  padding:4px 10px;
-  margin:4px 4px 0 0;
-  border-radius:999px;
-  font-size:12px;
-  cursor:pointer;
-  user-select:none;
-}
-.pill.category{
-  background:#e0ecff;
-  color:#1d4ed8;
-  border:1px solid #bfdbfe;
-}
-.pill.practice{
-  background:#e7f6eb;
-  color:#166534;
-  border:1px solid #bbf7d0;
-}
+    .container{
+      max-width:1200px;
+      margin:0 auto;
+      padding:22px 18px 26px;
+    }
 
-/* ---------- Links ---------- */
-.links{
-  margin-top:8px;
-  font-size:13px;
-}
-.links div{
-  margin:2px 0;
-}
-.links a{
-  color:#2563eb;
-  text-decoration:none;
-}
-.links a:hover{text-decoration:underline}
+    h1{
+      margin:0;
+      text-align:center;
+      color:var(--green);
+      letter-spacing:.2px;
+      font-size:42px;
+      font-weight:700;
+    }
 
-/* ---------- Notes ---------- */
-.notes{
-  margin-top:8px;
-  padding-top:6px;
-  border-top:1px solid #e5e7eb;
-  font-size:13px;
-  font-style:italic;
-  color:#6b7280;
-}
+    #slogan{
+      text-align:center;
+      font-style:italic;
+      margin:8px 0 18px;
+      color:#374151;
+    }
+    #slogan a{ color:#374151; text-decoration:underline; }
 
-/* ---------- Print ---------- */
-@media print{
-  .filters,.results-count,#resetBtn{display:none}
-  body{background:#fff}
-  .card{page-break-inside:avoid}
-}
-</style>
+    /* Filters row */
+    .filters{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:flex-start;
+      margin-bottom:10px;
+    }
+
+    .filters input,
+    .filters select{
+      height:42px;
+      line-height:42px;
+      padding:0 12px;
+      font-size:14px;
+      border:1px solid #cfcfcf;
+      border-radius:6px;
+      box-sizing:border-box;
+      background:#fff;
+      min-width:180px;
+    }
+
+    .filters input{
+      flex:1 1 360px;
+      min-width:240px;
+    }
+    .filters select{
+      flex:0 0 220px;
+    }
+
+    #resetBtn{
+      height:42px;
+      padding:0 14px;
+      border-radius:6px;
+      border:none;
+      background:var(--btn-blue);
+      color:#fff;
+      cursor:pointer;
+      font-weight:600;
+      white-space:nowrap;
+    }
+    #resetBtn:hover{ background:var(--btn-blue-hover); }
+
+    .results-count{
+      margin:8px 0 14px;
+      font-size:14px;
+      color:#111827;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+      gap:16px;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:14px 14px 12px;
+      box-shadow:0 1px 0 rgba(0,0,0,.03);
+    }
+
+    .card.featured{
+      border:2px solid var(--btn-blue);
+      background:#eef2ff;
+    }
+
+    .card h3{
+      margin:2px 0 8px;
+      font-size:18px;
+      font-weight:700;
+    }
+
+    /* Product/Service bullet formatting with aligned wrap */
+    .desc{
+      font-size:14px;
+      line-height:1.55;
+      margin-bottom:8px;
+    }
+    .desc-line{
+      display:block;
+      padding-left:1.25em;      /* indent for wrapped lines */
+      text-indent:-1.25em;      /* hanging indent so ">" sits left */
+      margin:0 0 4px;
+    }
+
+    /* Pills */
+    .pills{ margin:6px 0 8px; }
+
+    .pill{
+      display:inline-block;
+      padding:4px 10px;
+      margin:4px 6px 0 0;
+      border-radius:999px;
+      font-size:12px;
+      cursor:pointer;
+      user-select:none;
+      border:1px solid transparent;
+    }
+
+    .pill.category{
+      background:var(--pill-blue-bg);
+      border-color:var(--pill-blue-bd);
+      color:var(--pill-blue-tx);
+    }
+
+    .pill.practice{
+      background:var(--pill-green-bg);
+      border-color:var(--pill-green-bd);
+      color:var(--pill-green-tx);
+    }
+
+    /* Links/contact */
+    .links{
+      margin-top:6px;
+      font-size:13px;
+    }
+    .links .row{
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+      margin:3px 0;
+    }
+    .icon{ width:16px; opacity:.85; line-height:1.2; }
+    .links a{
+      color:#2563eb;
+      text-decoration:none;
+      word-break:break-word;
+      font-size:13px; /* reduced hyperlink font size */
+    }
+    .links a:hover{ text-decoration:underline; }
+
+    /* Notes */
+    .notes{
+      margin-top:10px;
+      padding-top:8px;
+      border-top:1px solid var(--border);
+      font-size:13px;
+      font-style:italic;
+      color:var(--muted);
+      white-space:pre-wrap;
+    }
+
+    /* Footer */
+    #updated{
+      margin-top:22px;
+      font-size:12px;
+      color:var(--muted);
+      text-align:center;
+    }
+
+    /* Print-friendly mode */
+    @media print{
+      .filters, .results-count, #updated { display:none !important; }
+      body{ background:#fff; }
+      .card{ page-break-inside:avoid; box-shadow:none; }
+    }
+  </style>
 </head>
 
 <body>
-<div class="container">
+  <div class="container">
+    <h1>CEH Sustainable Consumer Guide</h1>
+    <div id="slogan"></div>
 
-<h1>CEH Sustainable Consumer Guide</h1>
-<div id="slogan"></div>
+    <div class="filters">
+      <input id="search" placeholder="Search name, product, category or practice…" />
+      <select id="locationFilter"><option value="">All locations</option></select>
+      <select id="practiceFilter"><option value="">All practices</option></select>
+      <button id="resetBtn" type="button">Reset filters</button>
+    </div>
 
-<div class="filters">
-  <input id="search" placeholder="Search name, product, category or practice…">
-  <select id="locationFilter"><option value="">All locations</option></select>
-  <select id="practiceFilter"><option value="">All practices</option></select>
-  <button id="resetBtn">Reset filters</button>
-</div>
+    <div class="results-count" id="count"></div>
+    <div class="cards" id="cards"></div>
 
-<div class="results-count" id="count"></div>
-<div class="cards" id="cards"></div>
-
-<div style="margin-top:30px;font-size:12px;color:#6b7280;text-align:center" id="updated"></div>
-
-</div>
+    <div id="updated"></div>
+  </div>
 
 <script>
 /* ---------- CONFIG ---------- */
-const DATA_CSV =
-"https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
+const SHEET_ID = "1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg";
+const DATA_GID = "2076497318";
+const SLOGAN_GID = "435440157";
 
-const SLOGAN_CSV =
-"https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=435440157";
-
-/* ---------- HELPERS ---------- */
-function splitCSV(v){
-  return v? v.split(",").map(s=>s.trim()).filter(Boolean):[];
-}
-function onlyLinks(text){
-  if(!text) return [];
-  return text.split(",").map(s=>s.trim()).filter(s=>s.startsWith("http"));
-}
-function formatDesc(text){
-  if(!text) return "";
-  return text.split(/\. +/).filter(Boolean).map(s=>{
-    if(!s.endsWith(".")) s+=".";
-    return `<span class="desc-line">&gt; ${s}</span>`;
-  }).join("");
-}
-function mapsLink(addr){
-  return addr?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`:"";
-}
-
-/* ---------- LOAD DATA ---------- */
-let rows=[];
-fetch(DATA_CSV).then(r=>r.text()).then(t=>{
-  const [head,...lines]=t.split("\n").map(r=>r.split(","));
-  rows=lines.map(l=>{
-    const o={};
-    head.forEach((h,i)=>o[h.trim()]=l[i]?.trim());
-    return o;
-  });
-  initFilters();
-  render();
-  document.getElementById("updated").textContent=
-    "Data last updated: "+new Date().toLocaleDateString();
-});
-
-/* ---------- FILTERS ---------- */
-function initFilters(){
-  const loc=new Set(), prac=new Set();
-  rows.forEach(r=>{
-    splitCSV(r.Location).forEach(l=>loc.add(l));
-    splitCSV(r.Practices).forEach(p=>prac.add(p));
-  });
-  loc.forEach(l=>{
-    locationFilter.add(new Option(l,l));
-  });
-  prac.forEach(p=>{
-    practiceFilter.add(new Option(p,p));
-  });
-}
-search.oninput=render;
-locationFilter.onchange=render;
-practiceFilter.onchange=render;
-resetBtn.onclick=()=>{
-  search.value="";
-  locationFilter.value="";
-  practiceFilter.value="";
-  render();
+/* Directory headers (must match exactly) */
+const H = {
+  status: "Status",
+  name: "Name",
+  product: "Product/Service",
+  location: "Location",
+  category: "Category",
+  practices: "Practices",
+  website: "Website",
+  phone: "Phone",
+  email: "Email",
+  address: "Address",
+  geo: "Geolocation",
+  notes: "Notes",
+  date: "Date",
+  featured: "Featured" // optional
 };
 
-/* ---------- RENDER ---------- */
-function render(){
-  const q=search.value.toLowerCase();
-  const loc=locationFilter.value;
-  const prac=practiceFilter.value;
-  cards.innerHTML="";
-  let shown=0;
+const DATA_CSV = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${DATA_GID}`;
+const SLOGAN_CSV = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SLOGAN_GID}`;
 
-  rows.forEach(r=>{
-    if(r.Status && r.Status!=="Approved") return;
-    if(loc && !splitCSV(r.Location).includes(loc)) return;
-    if(prac && !splitCSV(r.Practices).includes(prac)) return;
-    if(q && !JSON.stringify(r).toLowerCase().includes(q)) return;
+/* Slogans: user wants Row 4 to 16 (1-indexed) => array indices 3..15 after parsing */
+const SLOGAN_START_INDEX = 3;  // row 4
+const SLOGAN_END_INDEX = 15;   // row 16
+
+/* ---------- STATE ---------- */
+let allRows = [];
+let sloganRows = [];
+
+/* ---------- HELPERS ---------- */
+function splitCommaList(v){
+  if(!v) return [];
+  return String(v).split(",").map(s => s.trim()).filter(Boolean);
+}
+
+function normalizeUrl(raw){
+  if(!raw) return null;
+  const s = String(raw).trim();
+  if(!s) return null;
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  if (s.startsWith("www.")) return "https://" + s;
+  return null; // ignore non-links as requested
+}
+
+/* Website field can contain text + links separated by commas. Ignore text; keep only links. */
+function extractLinksFromWebsiteCell(cell){
+  if(!cell) return [];
+  return String(cell)
+    .split(",")
+    .map(p => p.trim())
+    .map(normalizeUrl)
+    .filter(Boolean);
+}
+
+/* Product/Service formatting:
+   - Ensure first sentence starts with >
+   - Split on ". " into bullet lines
+   - Hanging indent so wrapped text aligns */
+function formatProductService(text){
+  if(!text) return "";
+  const cleaned = String(text).replace(/\s+/g, " ").trim();
+  if(!cleaned) return "";
+
+  const parts = cleaned.split(/\. +/).map(s => s.trim()).filter(Boolean).map(s => s.endsWith(".") ? s : (s + "."));
+  return parts.map(s => `<span class="desc-line">&gt; ${escapeHtml(s)}</span>`).join("");
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+}
+
+function mapsLinkFromAddressOrGeo(address, geo){
+  // Prefer geolocation if it looks like lat,lng, otherwise address search.
+  const g = (geo || "").trim();
+  if (g && /^[\-\d.]+\s*,\s*[\-\d.]+$/.test(g)) {
+    return `https://www.google.com/maps?q=${encodeURIComponent(g)}`;
+  }
+  const a = (address || "").trim();
+  if (a) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a)}`;
+  return "";
+}
+
+/* Canonicalize duplicates like "Cygnet, Huonville" etc into separate dropdown items:
+   (We already split by comma; duplicates removed by Set) */
+function uniqueSorted(arr){
+  return Array.from(new Set(arr)).sort((a,b)=>a.localeCompare(b));
+}
+
+/* ---------- LOAD CSV (robust) ---------- */
+function loadCsv(url){
+  return new Promise((resolve, reduce) => {
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: h => (h || "").trim(),
+      complete: (res) => resolve(res.data || []),
+      error: (err) => reduce(err)
+    });
+  });
+}
+
+(async function init(){
+  try{
+    allRows = await loadCsv(DATA_CSV);
+
+    // Build filters from approved rows only
+    const approved = allRows.filter(r => String(r[H.status] || "").trim() === "Approved");
+    buildFilters(approved);
+
+    // Render once initially
+    render(approved);
+
+    // Footer last updated (local browser date is OK; if you want sheet date we can read Date max later)
+    document.getElementById("updated").textContent =
+      "Data last updated: " + new Date().toLocaleDateString();
+
+    // Load slogans
+    sloganRows = await loadCsv(SLOGAN_CSV);
+    startSloganRotation(sloganRows);
+
+  } catch(e){
+    console.error(e);
+    document.getElementById("count").textContent =
+      "Error loading data. Please check the sheet link and permissions.";
+  }
+})();
+
+/* ---------- FILTER UI ---------- */
+function buildFilters(rows){
+  const locs = [];
+  const pracs = [];
+
+  rows.forEach(r => {
+    splitCommaList(r[H.location]).forEach(v => locs.push(v));
+    splitCommaList(r[H.practices]).forEach(v => pracs.push(v));
+  });
+
+  const locUnique = uniqueSorted(locs);
+  const pracUnique = uniqueSorted(pracs);
+
+  const locSel = document.getElementById("locationFilter");
+  const pracSel = document.getElementById("practiceFilter");
+
+  // reset options
+  locSel.innerHTML = `<option value="">All locations</option>` + locUnique.map(v => `<option>${escapeHtml(v)}</option>`).join("");
+  pracSel.innerHTML = `<option value="">All practices</option>` + pracUnique.map(v => `<option>${escapeHtml(v)}</option>`).join("");
+
+  document.getElementById("search").addEventListener("input", () => render(rows));
+  locSel.addEventListener("change", () => render(rows));
+  pracSel.addEventListener("change", () => render(rows));
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    document.getElementById("search").value = "";
+    locSel.value = "";
+    pracSel.value = "";
+    render(rows);
+  });
+}
+
+/* ---------- PILL CLICK FILTERS ---------- */
+function setPracticeFilter(p){
+  const sel = document.getElementById("practiceFilter");
+  sel.value = p;
+  sel.dispatchEvent(new Event("change"));
+}
+function setCategorySearch(c){
+  // Category filter is via clickable blue pills; simplest is using the search box
+  // so it matches category text.
+  const inp = document.getElementById("search");
+  inp.value = c;
+  inp.dispatchEvent(new Event("input"));
+}
+
+/* ---------- RENDER CARDS ---------- */
+function render(rows){
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const loc = document.getElementById("locationFilter").value;
+  const prac = document.getElementById("practiceFilter").value;
+
+  const cards = document.getElementById("cards");
+  cards.innerHTML = "";
+
+  let shown = 0;
+
+  // Keep original order (sheet order). If you later want “newest first”, we can sort by Date.
+  rows.forEach(r => {
+    const name = (r[H.name] || "").trim();
+
+    // Filters
+    if (loc && !splitCommaList(r[H.location]).includes(loc)) return;
+    if (prac && !splitCommaList(r[H.practices]).includes(prac)) return;
+    if (q){
+      const hay = JSON.stringify(r).toLowerCase();
+      if (!hay.includes(q)) return;
+    }
 
     shown++;
 
-    const featured = (r.Featured||"").toLowerCase()==="yes";
+    const featured = String(r[H.featured] || "").trim().toLowerCase() === "yes";
 
-    const card=document.createElement("div");
-    card.className="card"+(featured?" featured":"");
-    card.innerHTML=`
-      <h3>${r.Name||""}</h3>
-      <div class="desc">${formatDesc(r["Product/Service"])}</div>
+    const categoryItems = splitCommaList(r[H.category]);
+    const practiceItems = splitCommaList(r[H.practices]);
 
-      ${splitCSV(r.Category).map(c=>
-        `<span class="pill category" onclick="applyCategory('${c}')">${c}</span>`
-      ).join("")}
+    const links = extractLinksFromWebsiteCell(r[H.website]);
+    const phone = (r[H.phone] || "").trim();
+    const email = (r[H.email] || "").trim();
+    const address = (r[H.address] || "").trim();
+    const geo = (r[H.geo] || "").trim();
+    const notes = (r[H.notes] || "").trim();
 
-      ${splitCSV(r.Practices).map(p=>
-        `<span class="pill practice" onclick="applyPractice('${p}')">${p}</span>`
-      ).join("")}
+    const mapsUrl = mapsLinkFromAddressOrGeo(address, geo);
 
-      <div class="links">
-        ${onlyLinks(r.Website).map(u=>`<div>🔗 <a href="${u}" target="_blank">${u}</a></div>`).join("")}
-        ${r.Phone?`<div>📞 ${r.Phone}</div>`:""}
-        ${r.Email?`<div>✉️ <a href="mailto:${r.Email}">${r.Email}</a></div>`:""}
-        ${r.Address?`<div>📍 <a href="${mapsLink(r.Address)}" target="_blank">${r.Address}</a></div>`:""}
+    const card = document.createElement("div");
+    card.className = "card" + (featured ? " featured" : "");
+
+    card.innerHTML = `
+      <h3>${escapeHtml(name || "Untitled")}</h3>
+
+      <div class="desc">${formatProductService(r[H.product])}</div>
+
+      <div class="pills">
+        ${categoryItems.map(c => `
+          <span class="pill category" role="button" tabindex="0"
+                onclick="window.__setCategorySearch(${JSON.stringify(c)})">
+            ${escapeHtml(c)}
+          </span>`).join("")}
+
+        ${practiceItems.map(p => `
+          <span class="pill practice" role="button" tabindex="0"
+                onclick="window.__setPracticeFilter(${JSON.stringify(p)})">
+            ${escapeHtml(p)}
+          </span>`).join("")}
       </div>
 
-      ${r.Notes?`<div class="notes">${r.Notes}</div>`:""}
+      <div class="links">
+        ${links.map(u => `
+          <div class="row"><div class="icon">🔗</div><div><a href="${u}" target="_blank" rel="noopener">${escapeHtml(u)}</a></div></div>
+        `).join("")}
+
+        ${phone ? `<div class="row"><div class="icon">📞</div><div>${escapeHtml(phone)}</div></div>` : ""}
+
+        ${email ? `<div class="row"><div class="icon">✉️</div><div><a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></div></div>` : ""}
+
+        ${address ? `
+          <div class="row">
+            <div class="icon">📍</div>
+            <div>
+              ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" rel="noopener">${escapeHtml(address)}</a>` : escapeHtml(address)}
+            </div>
+          </div>` : ""}
+      </div>
+
+      ${notes ? `<div class="notes">${escapeHtml(notes)}</div>` : ""}
     `;
+
     cards.appendChild(card);
   });
 
-  count.textContent=`Showing ${shown} of ${rows.length} results`;
+  document.getElementById("count").textContent = `Showing ${shown} of ${rows.length} results`;
 }
 
-/* ---------- PILL FILTERS ---------- */
-function applyCategory(c){
-  search.value=c;
-  render();
-}
-function applyPractice(p){
-  practiceFilter.value=p;
-  render();
-}
+/* expose pill handlers */
+window.__setPracticeFilter = setPracticeFilter;
+window.__setCategorySearch = setCategorySearch;
 
 /* ---------- SLOGANS ---------- */
-fetch(SLOGAN_CSV).then(r=>r.text()).then(t=>{
-  const rows=t.split("\n").slice(3,16).map(r=>r.split(","));
-  let i=0;
-  function rotate(){
-    const [txt,url,sec]=rows[i];
-    slogan.innerHTML=url?`<a href="${url}" target="_blank">${txt}</a>`:txt;
-    i=(i+1)%rows.length;
-    setTimeout(rotate,(parseInt(sec)||5)*1000);
+function startSloganRotation(rows){
+  const el = document.getElementById("slogan");
+  const usable = (rows || []).slice(SLOGAN_START_INDEX, SLOGAN_END_INDEX + 1)
+    .map(r => ({
+      text: (r["Slogan"] || r["slogan"] || r[Object.keys(r)[0]] || "").trim(),
+      url: normalizeUrl(r["URL"] || r["Url"] || r["url"] || r[Object.keys(r)[1]] || ""),
+      sec: parseInt((r["Seconds"] || r["seconds"] || r[Object.keys(r)[2]] || "5"), 10)
+    }))
+    .filter(x => x.text);
+
+  if (!usable.length){
+    el.textContent = " ";
+    return;
   }
-  rotate();
-});
+
+  let i = 0;
+  function tick(){
+    const s = usable[i];
+    const seconds = Number.isFinite(s.sec) && s.sec > 0 ? s.sec : 5;
+
+    el.innerHTML = s.url
+      ? `<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.text)}</a>`
+      : escapeHtml(s.text);
+
+    i = (i + 1) % usable.length;
+    setTimeout(tick, seconds * 1000);
+  }
+  tick();
+}
 </script>
 </body>
 </html>
