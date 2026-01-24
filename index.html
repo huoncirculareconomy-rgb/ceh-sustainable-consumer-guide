@@ -44,18 +44,25 @@
 
   h1{
     margin: 0 0 4px 0;
+    margin-bottom: 6px;
     font-size: 40px;
     line-height: 1.1;
     color: var(--title);
     font-weight: 700;
+    text-align: center;
   }
 
   /* Rotating slogan */
   #slogan{
+    font-size: 16px;
+    max-width: 720px;
     font-style: italic;
     color: #444;
-    margin: 6px 0 14px;
+    margin: 0 auto 18px;
     min-height: 1.4em;
+    text-align: center;
+    line-height: 1.4;
+    opacity: 0.85;
   }
   #slogan a{
     color: inherit;
@@ -70,6 +77,8 @@
     align-items:center;
     flex-wrap: wrap;
     margin: 10px 0 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e0e0e0;
   }
 
   .filters input,
@@ -173,7 +182,9 @@
     border: 1px solid var(--green-border);
   }
 
-  .pill:hover{ filter: brightness(0.98); }
+  .pill:hover{ filter: brightness(0.98);
+             box-shadow: 0 0 0 1px rgba(0,0,0,0.05)
+             }
 
   /* Links & contact area */
   .contact{
@@ -407,7 +418,7 @@ function loadSlogans(){
     skipEmptyLines: true,
     complete: (res) => {
       // Rows are 1-based in Sheets; we want 3–16 => indices 2..15 inclusive
-      const rows = (res.data || []).slice(2, 16);
+      const rows = (res.data || []).slice(3, 16);
 
       slogans = rows
         .map(r => ({
@@ -738,3 +749,4 @@ loadData();
 </script>
 </body>
 </html>
+
