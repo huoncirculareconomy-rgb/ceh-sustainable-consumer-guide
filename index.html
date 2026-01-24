@@ -25,8 +25,6 @@
   --green-bd:#b9e2c2;
   --green-tx:#1a6b2f;
 
-  --active:#000;
-
   --btn:#1f66d1;
   --btn-dark:#154ea3;
 }
@@ -64,7 +62,6 @@ h1{
   border:1px solid var(--border);
   border-radius:12px;
   padding:14px;
-  box-shadow:0 1px 3px rgba(0,0,0,.08);
 }
 
 .controls-row{
@@ -79,7 +76,6 @@ h1{
   font-size:14px;
   border-radius:8px;
   border:1px solid #7d7d7d;
-  background:#fff;
 }
 
 .input{ flex:1 1 360px; }
@@ -88,16 +84,8 @@ h1{
 .btn{
   background:var(--btn);
   color:#fff;
-  border-color:var(--btn);
   font-weight:700;
   cursor:pointer;
-}
-.btn:hover{ background:var(--btn-dark); }
-
-.meta{
-  margin-top:10px;
-  font-size:13px;
-  color:var(--muted);
 }
 
 .grid{
@@ -119,7 +107,6 @@ h1{
   border:1px solid var(--border);
   border-radius:12px;
   padding:14px;
-  box-shadow:0 1px 3px rgba(0,0,0,.08);
 }
 
 .name{
@@ -171,23 +158,8 @@ h1{
 }
 
 .pill.active{
-  outline:2px solid var(--active);
+  outline:2px solid #000;
   font-weight:700;
-}
-
-.links{
-  border-top:1px solid #e5e5e5;
-  padding-top:8px;
-  font-size:12.5px;
-}
-
-.notes{
-  border-top:1px solid #e5e5e5;
-  margin-top:8px;
-  padding-top:8px;
-  font-size:12.5px;
-  font-style:italic;
-  color:#7a7a7a;
 }
 
 footer{
@@ -207,7 +179,7 @@ footer{
 
 <div class="controls">
   <div class="controls-row">
-    <input id="search" class="input" placeholder="Search name, product, category or practice…" />
+    <input id="search" class="input" placeholder="Search…" />
     <select id="locationFilter" class="select"></select>
     <select id="practiceFilter" class="select"></select>
     <button class="btn" onclick="resetFilters()">Reset filters</button>
@@ -221,15 +193,8 @@ footer{
 </div>
 
 <script>
-/* ========= DATA ========= */
-
 const DATA_CSV =
-  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
-
-const SLOGAN_CSV =
-  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=435440157";
-
-/* ========= STATE ========= */
+ "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
 
 let allData = [];
 let filtered = [];
@@ -237,10 +202,8 @@ let filtered = [];
 let activeCategories = new Set();
 let activePractices = new Set();
 
-/* ========= HELPERS ========= */
-
 const splitClean = v =>
-  v ? v.split(",").map(x => x.trim()).filter(Boolean) : [];
+  v ? v.split(",").map(x=>x.trim()).filter(Boolean) : [];
 
 const bulletise = text =>
   text ? text.split(".").map(t=>t.trim()).filter(Boolean)
@@ -249,8 +212,6 @@ const bulletise = text =>
         <div class="chev">&gt;</div>
         <div>${t}.</div>
       </div>`).join("") : "";
-
-/* ========= LOAD DATA ========= */
 
 Papa.parse(DATA_CSV,{
   download:true,
@@ -264,7 +225,25 @@ Papa.parse(DATA_CSV,{
   }
 });
 
-/* ========= FILTERS ========= */
+/* ===== FILTER DROPDOWNS (RESTORED) ===== */
+
+function buildFilters(){
+  const loc = new Set();
+  const prac = new Set();
+
+  allData.forEach(r=>{
+    splitClean(r.Location).forEach(x=>loc.add(x));
+    splitClean(r.Practices).forEach(x=>prac.add(x));
+  });
+
+  locationFilter.innerHTML =
+    `<option value="">All locations</option>` +
+    [...loc].sort().map(x=>`<option>${x}</option>`).join("");
+
+  practiceFilter.innerHTML =
+    `<option value="">All practices</option>` +
+    [...prac].sort().map(x=>`<option>${x}</option>`).join("");
+}
 
 search.oninput =
 locationFilter.onchange =
@@ -295,19 +274,14 @@ function applyFilters(){
     const cats = splitClean(r.Category);
     const pracs = splitClean(r.Practices);
 
-    if(activeCategories.size &&
-       !cats.some(c=>activeCategories.has(c))) return false;
-
-    if(activePractices.size &&
-       !pracs.some(p=>activePractices.has(p))) return false;
+    if(activeCategories.size && !cats.some(c=>activeCategories.has(c))) return false;
+    if(activePractices.size && !pracs.some(p=>activePractices.has(p))) return false;
 
     return JSON.stringify(r).toLowerCase().includes(q);
   });
 
   render();
 }
-
-/* ========= RENDER ========= */
 
 function render(){
   cards.innerHTML = filtered.map(r=>`
@@ -334,23 +308,6 @@ function render(){
   resultCount.textContent =
     `Showing ${filtered.length} of ${allData.length} results`;
 }
-
-/* ========= SLOGANS ========= */
-
-Papa.parse(SLOGAN_CSV,{
-  download:true,
-  complete:r=>{
-    const rows = r.data.slice(3,16).filter(x=>x[0]);
-    let i=0;
-    const show=()=>{
-      const [txt,url,sec]=rows[i];
-      slogan.innerHTML=url?`<a href="${url}" target="_blank">${txt}</a>`:txt;
-      i=(i+1)%rows.length;
-      setTimeout(show,(+sec||4)*1000);
-    };
-    if(rows.length) show();
-  }
-});
 </script>
 </body>
 </html>
