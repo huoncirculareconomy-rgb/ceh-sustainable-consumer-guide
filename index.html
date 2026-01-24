@@ -198,6 +198,9 @@ footer{
 <script>
 const DATA_CSV =
  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
+const SLOGAN_CSV =
+ "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=435440157";
+
 
 let allData = [];
 let filtered = [];
@@ -226,6 +229,34 @@ Papa.parse(DATA_CSV,{
     applyFilters();
     updated.textContent =
       "Data last updated: " + new Date().toLocaleDateString();
+  }
+});
+/* ========= SLOGANS ========= */
+
+Papa.parse(SLOGAN_CSV,{
+  download:true,
+  header:false,
+  complete:r=>{
+    // Rows 4–16 (0-based index)
+    const rows = r.data.slice(3,16).filter(x => x[0]);
+    let i = 0;
+
+    function showNext(){
+      const [text,url,seconds] = rows[i];
+
+      slogan.innerHTML = url
+        ? `<a href="${url}" target="_blank">${text}</a>`
+        : text;
+
+      i = (i + 1) % rows.length;
+      setTimeout(showNext,(Number(seconds) || 4) * 1000);
+    }
+
+    if(rows.length){
+      showNext();
+    } else {
+      console.warn("No slogans found in SLOGAN_CSV");
+    }
   }
 });
 
@@ -313,3 +344,4 @@ function render(){
 </script>
 </body>
 </html>
+
