@@ -5,16 +5,6 @@
 <title>CEH Sustainable Consumer Guide</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!--
-PURPOSE & FUNCTION
-------------------
-This page renders the Circular Economy Huon Sustainable Consumer Guide
-from a Google Sheets CSV. It displays businesses as cards with search
-and filters, clickable category and practice pills, contact details,
-and notes. Addresses link to Google Maps. Website and social links are
-automatically extracted from mixed text fields and shown with icons.
--->
-
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
@@ -36,9 +26,21 @@ h1 {
   margin-bottom: 4px;
 }
 
-.subtitle {
+/* Rotating slogan */
+#slogan {
   font-style: italic;
   margin-bottom: 16px;
+  min-height: 1.4em;
+  color: #444;
+}
+
+#slogan a {
+  color: inherit;
+  text-decoration: none;
+}
+
+#slogan a:hover {
+  text-decoration: underline;
 }
 
 /* Filters */
@@ -113,7 +115,6 @@ h1 {
   border-radius: 999px;
   margin: 3px 4px 0 0;
   cursor: pointer;
-  white-space: nowrap;
 }
 
 .category-tag {
@@ -136,7 +137,6 @@ h1 {
 
 .contact-item {
   display: flex;
-  align-items: flex-start;
   gap: 6px;
   margin-top: 3px;
 }
@@ -161,6 +161,14 @@ h1 {
   font-style: italic;
   font-size: 13px;
 }
+
+/* Footer */
+.footer {
+  margin-top: 24px;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}
 </style>
 </head>
 
@@ -168,7 +176,7 @@ h1 {
 <div class="container">
 
   <h1>CEH Sustainable Consumer Guide</h1>
-  <div class="subtitle">Choose local. Reduce waste. Strengthen the Huon Valley.</div>
+  <div id="slogan">Loading…</div>
 
   <div class="filters">
     <input id="searchInput" placeholder="Search name, product, category or practice…">
@@ -180,177 +188,64 @@ h1 {
   <div class="results-count" id="resultsCount"></div>
   <div class="cards" id="cards"></div>
 
+  <div class="footer" id="lastUpdated"></div>
+
 </div>
 
 <script>
-const CSV_URL =
+/* ======================
+   CONFIG
+====================== */
+const DATA_CSV =
   "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
 
-let rows = [];
-let filtered = [];
-let activeCategory = "";
+const SLOGAN_CSV =
+  "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=435440157";
 
-const searchInput = document.getElementById("searchInput");
-const locationFilter = document.getElementById("locationFilter");
-const practiceFilter = document.getElementById("practiceFilter");
-const cardsEl = document.getElementById("cards");
-const resultsCount = document.getElementById("resultsCount");
+/* ======================
+   SLOGANS
+====================== */
+let slogans = [];
+let sloganIndex = 0;
+let sloganTimer = null;
 
-/* Helpers */
-function list(val) {
-  return (val || "").split(",").map(v => v.trim()).filter(Boolean);
-}
+function loadSlogans() {
+  Papa.parse(SLOGAN_CSV, {
+    download: true,
+    header: false,
+    complete: res => {
+      slogans = res.data
+        .map(r => ({
+          text: r[0]?.trim(),
+          url: r[1]?.trim(),
+          seconds: parseInt(r[2], 10) || 5
+        }))
+        .filter(s => s.text);
 
-function extractLinks(val) {
-  if (!val) return [];
-  const matches = val.match(/(https?:\/\/[^\s,]+|www\.[^\s,]+)/gi) || [];
-  return matches.map(u => u.startsWith("http") ? u : "https://" + u);
-}
-
-function linkIcon(url) {
-  if (url.includes("facebook.com")) return "📘";
-  if (url.includes("instagram.com")) return "📸";
-  if (url.includes("twitter.com") || url.includes("x.com")) return "🐦";
-  return "🔗";
-}
-
-function mapsLink(address) {
-  return "https://www.google.com/maps/search/?api=1&query=" +
-         encodeURIComponent(address);
-}
-
-/* Load data */
-Papa.parse(CSV_URL, {
-  download: true,
-  header: true,
-  complete: res => {
-    rows = res.data
-      .filter(r => r.Status?.toLowerCase() === "active")
-      .sort((a, b) => new Date(b.Date) - new Date(a.Date));
-
-    populateFilters();
-    applyFilters();
-  }
-});
-
-function populateFilters() {
-  const locations = new Set();
-  const practices = new Set();
-
-  rows.forEach(r => {
-    list(r.Location).forEach(v => locations.add(v));
-    list(r.Practices).forEach(v => practices.add(v));
-  });
-
-  [...locations].sort().forEach(v =>
-    locationFilter.add(new Option(v, v))
-  );
-  [...practices].sort().forEach(v =>
-    practiceFilter.add(new Option(v, v))
-  );
-}
-
-function applyFilters() {
-  const q = searchInput.value.toLowerCase();
-  const loc = locationFilter.value;
-  const prac = practiceFilter.value;
-
-  filtered = rows.filter(r => {
-    const text =
-      `${r.Name} ${r["Product/Service"]} ${r.Category} ${r.Practices}`.toLowerCase();
-
-    if (q && !text.includes(q)) return false;
-    if (loc && !list(r.Location).includes(loc)) return false;
-    if (prac && !list(r.Practices).includes(prac)) return false;
-    if (activeCategory && !list(r.Category).includes(activeCategory)) return false;
-
-    return true;
-  });
-
-  render();
-}
-
-function render() {
-  cardsEl.innerHTML = "";
-  resultsCount.textContent =
-    `Showing ${filtered.length} of ${rows.length} results`;
-
-  filtered.forEach(r => {
-    const card = document.createElement("div");
-    card.className = "card";
-
-    const categoryHTML = list(r.Category)
-      .map(c => `<span class="category-tag" data-cat="${c}">${c}</span>`)
-      .join("");
-
-    const practiceHTML = list(r.Practices)
-      .map(p => `<span class="practice-tag" data-practice="${p}">${p}</span>`)
-      .join("");
-
-    const linksHTML = extractLinks(r.Website)
-      .map(u => `
-        <div class="contact-item">
-          <span>${linkIcon(u)}</span>
-          <a href="${u}" target="_blank">${u}</a>
-        </div>
-      `).join("");
-
-    const addressHTML = r.Address
-      ? `<div class="contact-item">
-           <span>📍</span>
-           <a href="${mapsLink(r.Address)}" target="_blank">${r.Address}</a>
-         </div>`
-      : "";
-
-    card.innerHTML = `
-      <h3>${r.Name}</h3>
-      <div class="description">${r["Product/Service"] || ""}</div>
-
-      <div>${categoryHTML}</div>
-      <div>${practiceHTML}</div>
-
-      <div class="contact">
-        ${linksHTML}
-        ${r.Phone ? `<div class="contact-item"><span>📞</span>${r.Phone}</div>` : ""}
-        ${r.Email ? `<div class="contact-item"><span>✉️</span><a href="mailto:${r.Email}">${r.Email}</a></div>` : ""}
-        ${addressHTML}
-      </div>
-
-      ${r.Notes ? `<div class="notes">${r.Notes}</div>` : ""}
-    `;
-
-    cardsEl.appendChild(card);
-  });
-
-  document.querySelectorAll(".category-tag").forEach(el =>
-    el.onclick = () => {
-      activeCategory = el.dataset.cat;
-      applyFilters();
+      if (slogans.length) rotateSlogan();
     }
-  );
-
-  document.querySelectorAll(".practice-tag").forEach(el =>
-    el.onclick = () => {
-      practiceFilter.value = el.dataset.practice;
-      applyFilters();
-    }
-  );
+  });
 }
 
-searchInput.oninput = applyFilters;
-locationFilter.onchange = applyFilters;
-practiceFilter.onchange = () => {
-  activeCategory = "";
-  applyFilters();
-};
+function rotateSlogan() {
+  const s = slogans[sloganIndex];
+  const el = document.getElementById("slogan");
 
-document.getElementById("resetBtn").onclick = () => {
-  searchInput.value = "";
-  locationFilter.value = "";
-  practiceFilter.value = "";
-  activeCategory = "";
-  applyFilters();
-};
+  el.innerHTML = s.url
+    ? `<a href="${s.url}" target="_blank">${s.text}</a>`
+    : s.text;
+
+  clearTimeout(sloganTimer);
+  sloganTimer = setTimeout(() => {
+    sloganIndex = (sloganIndex + 1) % slogans.length;
+    rotateSlogan();
+  }, s.seconds * 1000);
+}
+
+/* ======================
+   START
+====================== */
+loadSlogans();
 </script>
 </body>
 </html>
