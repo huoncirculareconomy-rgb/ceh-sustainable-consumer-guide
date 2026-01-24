@@ -270,7 +270,7 @@ Papa.parse(DATA_CSV,{
   download:true,
   header:true,
   complete:r=>{
-    allData = r.data.filter(x=>x.Status?.toLowerCase()==="published");
+    allData = r.data.filter(x => x.Name && x["Product/Service"]);
     allData.sort((a,b)=>new Date(b.Date)-new Date(a.Date));
     buildFilters();
     applyFilters();
@@ -365,3 +365,4 @@ Papa.parse(SLOGAN_CSV,{
 </script>
 </body>
 </html>
+
