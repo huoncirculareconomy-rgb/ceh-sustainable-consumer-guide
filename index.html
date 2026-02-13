@@ -13,16 +13,16 @@
 Sustainable Consumer Guide
 Purpose:
   Display filterable business cards from Google Sheet CSV.
-  Includes category filtering, practice filtering, search,
-  rotating slogans, and contact details with icons and
-  Google Maps address links.
+  Includes search, filtering, rotating slogans,
+  and contact details with icons and Google Maps links.
 
-Version: 1.1
+Version: 1.2
 Last Modified: 13 February 2026
 
 Change Log:
-  v1.0  Governance framework adopted
-  v1.1  Rolled back vertical alignment feature
+  v1.0 Governance framework adopted
+  v1.1 Rolled back vertical alignment feature
+  v1.2 Restored missing core logic (no behavioural changes)
 =========================================================
 */
 
@@ -247,19 +247,29 @@ footer{
 <script>
 
 /* -----------------------------------------------------
+Data Sources
+----------------------------------------------------- */
+const DATA_CSV =
+ "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=2076497318";
+const SLOGAN_CSV =
+ "https://docs.google.com/spreadsheets/d/1Nm4LnfbmopYYSSRL6oGt2trWsIehBKYeUf_rl2pKYYg/export?format=csv&gid=435440157";
+
+/* -----------------------------------------------------
+Global State
+----------------------------------------------------- */
+let allData = [];
+let filtered = [];
+let activeCategory = null;
+let activePractice = null;
+
+/* -----------------------------------------------------
 Function: splitClean
-Purpose: Split comma-separated fields into trimmed array
-Inputs:  String
-Returns: Array
 ----------------------------------------------------- */
 const splitClean = v =>
   v ? v.split(",").map(x=>x.trim()).filter(Boolean) : [];
 
 /* -----------------------------------------------------
 Function: bulletise
-Purpose: Convert sentence string into bullet blocks
-Inputs:  String
-Returns: HTML string
 ----------------------------------------------------- */
 const bulletise = text =>
   text ? text.split(".").map(t=>t.trim()).filter(Boolean)
@@ -271,10 +281,6 @@ const bulletise = text =>
 
 /* -----------------------------------------------------
 Function: buildContact
-Purpose: Render contact block with icons and
-         Google Maps link for address
-Inputs:  Row object
-Returns: HTML string
 ----------------------------------------------------- */
 function buildContact(r){
   const website = r.Website?.trim();
@@ -298,8 +304,136 @@ function buildContact(r){
   `;
 }
 
-/* Remaining core logic unchanged — CSV loading,
-   filters, pill toggling, rendering, slogan rotation */
+/* -----------------------------------------------------
+Load Main Data
+----------------------------------------------------- */
+Papa.parse(DATA_CSV,{
+  download:true,
+  header:true,
+  complete:r=>{
+    allData = r.data.filter(x => x.Name);
+    allData.sort((a,b)=>new Date(b.Date)-new Date(a.Date));
+    buildFilters();
+    applyFilters();
+    updated.textContent =
+      "Data last updated: " + new Date().toLocaleDateString();
+  }
+});
+
+/* -----------------------------------------------------
+Load Slogans
+----------------------------------------------------- */
+Papa.parse(SLOGAN_CSV,{
+  download:true,
+  header:false,
+  complete:r=>{
+    const rows = r.data.slice(3,16).filter(x => x[0]);
+    let i = 0;
+    function showNext(){
+      const [text,url,seconds] = rows[i];
+      slogan.innerHTML = url
+        ? `<a href="${url}" target="_blank">${text}</a>`
+        : text;
+      i = (i + 1) % rows.length;
+      setTimeout(showNext,(Number(seconds) || 4) * 1000);
+    }
+    if(rows.length) showNext();
+  }
+});
+
+/* -----------------------------------------------------
+Function: buildFilters
+----------------------------------------------------- */
+function buildFilters(){
+  const loc = new Set();
+  const prac = new Set();
+
+  allData.forEach(r=>{
+    splitClean(r.Location).forEach(x=>loc.add(x));
+    splitClean(r.Practices).forEach(x=>prac.add(x));
+  });
+
+  locationFilter.innerHTML =
+    `<option value="">All locations</option>` +
+    [...loc].sort().map(x=>`<option>${x}</option>`).join("");
+
+  practiceFilter.innerHTML =
+    `<option value="">All practices</option>` +
+    [...prac].sort().map(x=>`<option>${x}</option>`).join("");
+}
+
+/* -----------------------------------------------------
+Filter Controls
+----------------------------------------------------- */
+search.oninput =
+locationFilter.onchange =
+practiceFilter.onchange = applyFilters;
+
+function resetFilters(){
+  search.value="";
+  locationFilter.value="";
+  practiceFilter.value="";
+  activeCategory = null;
+  activePractice = null;
+  applyFilters();
+}
+
+function togglePill(type,value){
+  if(type==="category"){
+    activeCategory = activeCategory===value ? null : value;
+  } else {
+    activePractice = activePractice===value ? null : value;
+  }
+  applyFilters();
+}
+
+/* -----------------------------------------------------
+Function: applyFilters
+----------------------------------------------------- */
+function applyFilters(){
+  const q = search.value.toLowerCase();
+
+  filtered = allData.filter(r=>{
+    if(locationFilter.value && !r.Location?.includes(locationFilter.value)) return false;
+    if(practiceFilter.value && !r.Practices?.includes(practiceFilter.value)) return false;
+    if(activeCategory && !splitClean(r.Category).includes(activeCategory)) return false;
+    if(activePractice && !splitClean(r.Practices).includes(activePractice)) return false;
+    return JSON.stringify(r).toLowerCase().includes(q);
+  });
+
+  render();
+}
+
+/* -----------------------------------------------------
+Function: render
+----------------------------------------------------- */
+function render(){
+  cards.innerHTML = filtered.map(r=>`
+    <div class="card">
+      <div class="name">${r.Name}</div>
+      <div class="bullets">${bulletise(r["Product/Service"])}</div>
+
+      <div class="pills">
+        ${splitClean(r.Category).map(c=>`
+          <button class="pill blue ${activeCategory===c?"active":""}"
+          onclick="togglePill('category','${c.replace(/'/g,"&#39;")}')">${c}</button>
+        `).join("")}
+      </div>
+
+      <div class="pills">
+        ${splitClean(r.Practices).map(p=>`
+          <button class="pill green ${activePractice===p?"active":""}"
+          onclick="togglePill('practice','${p.replace(/'/g,"&#39;")}')">${p}</button>
+        `).join("")}
+      </div>
+
+      ${buildContact(r)}
+    </div>
+  `).join("");
+
+  resultCount.textContent =
+    `Showing ${filtered.length} of ${allData.length} results`;
+}
 
 </script>
 </body>
