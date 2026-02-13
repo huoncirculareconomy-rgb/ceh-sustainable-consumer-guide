@@ -13,24 +13,28 @@
 Sustainable Consumer Guide
 Purpose:
   Render filterable business cards from Google Sheet CSV.
-  Includes:
-    - Search
-    - Location filter
-    - Practice filter
-    - Category & practice pills
-    - Rotating slogans
-    - Contact section with icons
-    - Google Maps address links
-    - Robust multi-website support
 
-Version: 1.3
-Last Modified: 13 February 2026
+Features:
+  - Search
+  - Location filter
+  - Practice filter
+  - Category & practice pill filtering
+  - Rotating slogans
+  - Contact section with icons
+  - Google Maps address links
+  - Robust multi-URL extraction
+  - Consolidated result count + last updated display
+
+Version: 1.4.1 (LOCKED)
+Last Modified: 13-Feb-2026
 
 Change Log:
-  v1.0 Governance framework adopted
-  v1.1 Rolled back vertical alignment feature
-  v1.2 Restored missing core logic
-  v1.3 Website field now supports comma OR newline separation
+  v1.0  Governance framework adopted
+  v1.1  Rolled back vertical alignment feature
+  v1.2  Restored missing core logic
+  v1.3  Robust multi-URL support
+  v1.4  Merged result count and last updated
+  v1.4.1 Date format set to dd-Mmm-yyyy
 =========================================================
 */
 
@@ -115,6 +119,14 @@ h1{
   cursor:pointer;
 }
 .btn:hover{ background:var(--btn-dark); }
+
+.meta{
+  text-align:center;
+  font-size:13.5px;
+  margin-top:8px;
+  margin-bottom:8px;
+  color:var(--muted);
+}
 
 .grid{
   margin-top:16px;
@@ -221,13 +233,6 @@ h1{
 .contact a:hover{
   text-decoration:underline;
 }
-
-footer{
-  margin-top:18px;
-  text-align:center;
-  font-size:12.5px;
-  color:var(--muted);
-}
 </style>
 </head>
 
@@ -248,7 +253,6 @@ footer{
 </div>
 
 <div class="grid" id="cards"></div>
-<footer id="updated"></footer>
 
 </div>
 
@@ -269,18 +273,14 @@ let allData = [];
 let filtered = [];
 let activeCategory = null;
 let activePractice = null;
+let lastUpdated = "";
 
 /* -----------------------------------------------------
-Function: splitClean
-Purpose: Split comma-separated string into trimmed array
+Utility Functions
 ----------------------------------------------------- */
 const splitClean = v =>
   v ? v.split(",").map(x=>x.trim()).filter(Boolean) : [];
 
-/* -----------------------------------------------------
-Function: bulletise
-Purpose: Convert sentence block into chevron bullets
------------------------------------------------------ */
 const bulletise = text =>
   text ? text.split(".").map(t=>t.trim()).filter(Boolean)
     .map(t=>`
@@ -291,11 +291,7 @@ const bulletise = text =>
 
 /* -----------------------------------------------------
 Function: buildContact
-Purpose:
-  Render contact section.
-  Website field supports:
-    - Comma-separated URLs
-    - Newline-separated URLs
+Purpose: Render contact section with robust URL detection
 ----------------------------------------------------- */
 function buildContact(r){
   const websiteRaw = r.Website?.trim();
@@ -305,9 +301,9 @@ function buildContact(r){
 
   if(!websiteRaw && !phone && !email && !address) return "";
 
-  // Extract URLs no matter how they are separated (spaces, commas, new lines)
   const websites = websiteRaw
-    ? (websiteRaw.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/g) || [])
+    ? ((websiteRaw.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/g) || [])
+        .map(u => u.replace(/[),.]+$/g, "")))
     : [];
 
   const mapLink = address
@@ -316,42 +312,19 @@ function buildContact(r){
 
   return `
     <div class="contact">
-
       ${websites.map(site => `
         <div class="contact-row">
           <div class="icon">🌐</div>
-          <div>
-            <a href="${site.startsWith('http') ? site : 'https://' + site}" target="_blank">
-              ${site}
-            </a>
-          </div>
-        </div>
-      `).join("")}
-
-      ${phone ? `
-        <div class="contact-row">
-          <div class="icon">☎</div>
-          <div><a href="tel:${phone.replace(/\s+/g,'')}">${phone}</a></div>
-        </div>` : ""}
-
-      ${email ? `
-        <div class="contact-row">
-          <div class="icon">✉</div>
-          <div><a href="mailto:${email}">${email}</a></div>
-        </div>` : ""}
-
-      ${address ? `
-        <div class="contact-row">
-          <div class="icon">📍</div>
-          <div><a href="${mapLink}" target="_blank">${address}</a></div>
-        </div>` : ""}
-
-    </div>
-  `;
+          <div><a href="${site.startsWith('http') ? site : 'https://' + site}" target="_blank">${site}</a></div>
+        </div>`).join("")}
+      ${phone ? `<div class="contact-row"><div class="icon">☎</div><div><a href="tel:${phone.replace(/\s+/g,'')}">${phone}</a></div></div>` : ""}
+      ${email ? `<div class="contact-row"><div class="icon">✉</div><div><a href="mailto:${email}">${email}</a></div></div>` : ""}
+      ${address ? `<div class="contact-row"><div class="icon">📍</div><div><a href="${mapLink}" target="_blank">${address}</a></div></div>` : ""}
+    </div>`;
 }
 
 /* -----------------------------------------------------
-Load Main Data
+Load Data
 ----------------------------------------------------- */
 Papa.parse(DATA_CSV,{
   download:true,
@@ -359,10 +332,15 @@ Papa.parse(DATA_CSV,{
   complete:r=>{
     allData = r.data.filter(x => x.Name);
     allData.sort((a,b)=>new Date(b.Date)-new Date(a.Date));
+
+    lastUpdated = new Date().toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }).replace(/ /g, "-");
+
     buildFilters();
     applyFilters();
-    updated.textContent =
-      "Data last updated: " + new Date().toLocaleDateString();
   }
 });
 
@@ -388,8 +366,30 @@ Papa.parse(SLOGAN_CSV,{
 });
 
 /* -----------------------------------------------------
-Function: buildFilters
+Filtering Logic
 ----------------------------------------------------- */
+search.oninput =
+locationFilter.onchange =
+practiceFilter.onchange = applyFilters;
+
+function resetFilters(){
+  search.value="";
+  locationFilter.value="";
+  practiceFilter.value="";
+  activeCategory = null;
+  activePractice = null;
+  applyFilters();
+}
+
+function togglePill(type,value){
+  if(type==="category"){
+    activeCategory = activeCategory===value ? null : value;
+  } else {
+    activePractice = activePractice===value ? null : value;
+  }
+  applyFilters();
+}
+
 function buildFilters(){
   const loc = new Set();
   const prac = new Set();
@@ -408,40 +408,6 @@ function buildFilters(){
     [...prac].sort().map(x=>`<option>${x}</option>`).join("");
 }
 
-/* -----------------------------------------------------
-Filtering Controls
------------------------------------------------------ */
-search.oninput =
-locationFilter.onchange =
-practiceFilter.onchange = applyFilters;
-
-/* -----------------------------------------------------
-Function: resetFilters
------------------------------------------------------ */
-function resetFilters(){
-  search.value="";
-  locationFilter.value="";
-  practiceFilter.value="";
-  activeCategory = null;
-  activePractice = null;
-  applyFilters();
-}
-
-/* -----------------------------------------------------
-Function: togglePill
------------------------------------------------------ */
-function togglePill(type,value){
-  if(type==="category"){
-    activeCategory = activeCategory===value ? null : value;
-  } else {
-    activePractice = activePractice===value ? null : value;
-  }
-  applyFilters();
-}
-
-/* -----------------------------------------------------
-Function: applyFilters
------------------------------------------------------ */
 function applyFilters(){
   const q = search.value.toLowerCase();
 
@@ -456,39 +422,30 @@ function applyFilters(){
   render();
 }
 
-/* -----------------------------------------------------
-Function: render
------------------------------------------------------ */
 function render(){
   cards.innerHTML = filtered.map(r=>`
     <div class="card">
       <div class="name">${r.Name}</div>
       <div class="bullets">${bulletise(r["Product/Service"])}</div>
-
       <div class="pills">
         ${splitClean(r.Category).map(c=>`
           <button class="pill blue ${activeCategory===c?"active":""}"
           onclick="togglePill('category','${c.replace(/'/g,"&#39;")}')">${c}</button>
         `).join("")}
       </div>
-
       <div class="pills">
         ${splitClean(r.Practices).map(p=>`
           <button class="pill green ${activePractice===p?"active":""}"
           onclick="togglePill('practice','${p.replace(/'/g,"&#39;")}')">${p}</button>
         `).join("")}
       </div>
-
       ${buildContact(r)}
     </div>
   `).join("");
 
   resultCount.textContent =
-    `Showing ${filtered.length} of ${allData.length} results`;
+    `Showing ${filtered.length} of ${allData.length} results, last updated ${lastUpdated}`;
 }
-
 </script>
 </body>
 </html>
-
-
