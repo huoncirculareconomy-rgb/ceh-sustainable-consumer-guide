@@ -281,14 +281,24 @@ const bulletise = text =>
 
 /* -----------------------------------------------------
 Function: buildContact
+Purpose: Render contact block with icons and
+         Google Maps link for address.
+         Supports multiple website links.
+Inputs:  Row object
+Returns: HTML string
 ----------------------------------------------------- */
 function buildContact(r){
-  const website = r.Website?.trim();
+  const websiteRaw = r.Website?.trim();
   const phone = r.Phone?.trim();
   const email = r.Email?.trim();
   const address = r.Address?.trim();
 
-  if(!website && !phone && !email && !address) return "";
+  if(!websiteRaw && !phone && !email && !address) return "";
+
+  // Split multiple websites by comma
+  const websites = websiteRaw
+    ? websiteRaw.split(",").map(w=>w.trim()).filter(Boolean)
+    : [];
 
   const mapLink = address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
@@ -296,13 +306,40 @@ function buildContact(r){
 
   return `
     <div class="contact">
-      ${website ? `<div class="contact-row"><div class="icon">🌐</div><div><a href="${website.startsWith('http')?website:'https://'+website}" target="_blank">${website}</a></div></div>` : ""}
-      ${phone ? `<div class="contact-row"><div class="icon">☎</div><div><a href="tel:${phone.replace(/\s+/g,'')}">${phone}</a></div></div>` : ""}
-      ${email ? `<div class="contact-row"><div class="icon">✉</div><div><a href="mailto:${email}">${email}</a></div></div>` : ""}
-      ${address ? `<div class="contact-row"><div class="icon">📍</div><div><a href="${mapLink}" target="_blank">${address}</a></div></div>` : ""}
+
+      ${websites.map(site => `
+        <div class="contact-row">
+          <div class="icon">🌐</div>
+          <div>
+            <a href="${site.startsWith('http') ? site : 'https://' + site}" target="_blank">
+              ${site}
+            </a>
+          </div>
+        </div>
+      `).join("")}
+
+      ${phone ? `
+        <div class="contact-row">
+          <div class="icon">☎</div>
+          <div><a href="tel:${phone.replace(/\s+/g,'')}">${phone}</a></div>
+        </div>` : ""}
+
+      ${email ? `
+        <div class="contact-row">
+          <div class="icon">✉</div>
+          <div><a href="mailto:${email}">${email}</a></div>
+        </div>` : ""}
+
+      ${address ? `
+        <div class="contact-row">
+          <div class="icon">📍</div>
+          <div><a href="${mapLink}" target="_blank">${address}</a></div>
+        </div>` : ""}
+
     </div>
   `;
 }
+
 
 /* -----------------------------------------------------
 Load Main Data
@@ -438,3 +475,4 @@ function render(){
 </script>
 </body>
 </html>
+
