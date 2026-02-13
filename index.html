@@ -84,9 +84,16 @@ h1{
 .slogan{
   text-align:center;
   font-style:italic;
-  min-height:1.4em;
-  margin-bottom:18px;
+  font-size:18px;            /* slightly larger */
+  font-weight:500;           /* subtle emphasis */
+  letter-spacing:0.3px;      /* cleaner spacing */
+  color:#355f47;             /* slightly richer tone */
+  text-shadow: 0 1px 0 rgba(0,0,0,0.05);
+  min-height:1.6em;
+  margin-bottom:20px;
+  transition:opacity 0.4s ease-in-out;
 }
+
 
 .controls{
   background:var(--panel);
@@ -449,3 +456,4 @@ function render(){
 </script>
 </body>
 </html>
+
