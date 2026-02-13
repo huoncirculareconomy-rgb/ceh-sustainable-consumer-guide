@@ -305,12 +305,10 @@ function buildContact(r){
 
   if(!websiteRaw && !phone && !email && !address) return "";
 
-const websites = websiteRaw
-  ? websiteRaw
-      .split(/[\n,]+/)
-      .map(w=>w.trim())
-      .filter(Boolean)
-  : [];
+  // Extract URLs no matter how they are separated (spaces, commas, new lines)
+  const websites = websiteRaw
+    ? (websiteRaw.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/g) || [])
+    : [];
 
   const mapLink = address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
@@ -492,4 +490,5 @@ function render(){
 </script>
 </body>
 </html>
+
 
