@@ -407,14 +407,10 @@ Papa.parse(SLOGAN_CSV,{
 /* -----------------------------------------------------
 Filtering Logic
 ----------------------------------------------------- */
-search.oninput =
-locationFilter.onchange =
-practiceFilter.onchange = applyFilters;
+search.oninput = applyFilters;
 
 function resetFilters(){
   search.value="";
-  locationFilter.value="";
-  practiceFilter.value="";
   activeCategory = null;
   activePractice = null;
   applyFilters();
@@ -451,8 +447,6 @@ function applyFilters(){
   const q = search.value;
 
   filtered = allData.filter(r=>{
-    if(locationFilter.value && !r.Location?.includes(locationFilter.value)) return false;
-    if(practiceFilter.value && !r.Practices?.includes(practiceFilter.value)) return false;
     if(activeCategory && !splitClean(r.Category).includes(activeCategory)) return false;
     if(activePractice && !splitClean(r.Practices).includes(activePractice)) return false;
     return matchSearch(r, q);
@@ -488,6 +482,7 @@ function render(){
 </script>
 </body>
 </html>
+
 
 
 
