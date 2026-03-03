@@ -288,6 +288,37 @@ let lastUpdated = "";
 /* -----------------------------------------------------
 Utility Functions
 ----------------------------------------------------- */
+
+function matchSearch(record, query){
+
+  if(!query.trim()) return true;
+
+  const text = JSON.stringify(record).toLowerCase();
+  const q = query.toLowerCase();
+
+  // phrase search
+  const phrases = [...q.matchAll(/"([^"]+)"/g)].map(m => m[1]);
+
+  let remaining = q.replace(/"([^"]+)"/g, "").trim();
+
+  // phrase matching
+  for(const p of phrases){
+    if(!text.includes(p)) return false;
+  }
+
+  // OR logic
+  const orGroups = remaining.split(/\s+or\s+/);
+
+  if(orGroups.length > 1){
+    return orGroups.some(term => text.includes(term.trim()));
+  }
+
+  // AND logic
+  const words = remaining.split(/\s+/).filter(Boolean);
+
+  return words.every(w => text.includes(w));
+}
+  
 const splitClean = v =>
   v ? v.split(",").map(x=>x.trim()).filter(Boolean) : [];
 
@@ -419,14 +450,14 @@ function buildFilters(){
 }
 
 function applyFilters(){
-  const q = search.value.toLowerCase();
+  const q = search.value;
 
   filtered = allData.filter(r=>{
     if(locationFilter.value && !r.Location?.includes(locationFilter.value)) return false;
     if(practiceFilter.value && !r.Practices?.includes(practiceFilter.value)) return false;
     if(activeCategory && !splitClean(r.Category).includes(activeCategory)) return false;
     if(activePractice && !splitClean(r.Practices).includes(activePractice)) return false;
-    return JSON.stringify(r).toLowerCase().includes(q);
+    return matchSearch(r, q);
   });
 
   render();
@@ -459,6 +490,7 @@ function render(){
 </script>
 </body>
 </html>
+
 
 
 
