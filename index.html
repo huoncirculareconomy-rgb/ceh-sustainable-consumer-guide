@@ -251,12 +251,15 @@ h1{
 
 <div class="controls">
   <div class="controls-row">
-    <input id="search" class="input" placeholder="Search…" />
+    <input id="search" class="input" placeholder="Search businesses, products, locations or practices…" />
     <select id="locationFilter" class="select"></select>
     <select id="practiceFilter" class="select"></select>
     <button class="btn" onclick="resetFilters()">Reset filters</button>
   </div>
   <div class="meta" id="resultCount"></div>
+  <div class="meta" style="font-size:12.5px;">
+Search tips: use several words to narrow results, use <b>OR</b> between terms, or use "quotes" for exact phrases.
+   </div>
 </div>
 
 <div class="grid" id="cards"></div>
@@ -456,5 +459,6 @@ function render(){
 </script>
 </body>
 </html>
+
 
 
