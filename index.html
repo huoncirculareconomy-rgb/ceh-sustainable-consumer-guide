@@ -1,3 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CEH Sustainable Consumer Guide</title>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+/*
+=========================================================
+Sustainable Consumer Guide
+Purpose:
+  Render filterable business cards from Google Sheet CSV.
+
+Features:
+  - Search
+  - Location filter
+  - Practice filter
+  - Category & practice pill filtering
+  - Rotating slogans
+  - Contact section with icons
+  - Google Maps address links
+  - Robust multi-URL extraction
+  - Consolidated result count + last updated display
+
+Version: 1.4.1 (LOCKED)
+Last Modified: 13-Feb-2026
+
+Change Log:
+  v1.0  Governance framework adopted
+  v1.1  Rolled back vertical alignment feature
+  v1.2  Restored missing core logic
+  v1.3  Robust multi-URL support
+  v1.4  Merged result count and last updated
+  v1.4.1 Date format set to dd-Mmm-yyyy
+=========================================================
+*/
+
+:root{
+  --bg:#f6f3ef;
+  --panel:#fbf8f4;
+  --card:#f8f6f3;
+  --border:#d9d9d9;
+  --text:#24323f;
+  --muted:#777;
+  --title:#2e8b57;
+
+  --blue-bg:#e6f0ff;
+  --blue-bd:#bcd2ff;
+  --blue-tx:#0b3ea9;
+
+  --green-bg:#e7f6ea;
+  --green-bd:#b9e2c2;
+  --green-tx:#1a6b2f;
+
+  --pill-active:#333;
+  --btn:#1f66d1;
+  --btn-dark:#154ea3;
+}
+
+*{ box-sizing:border-box }
+
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.wrap{
+  max-width:1200px;
+  margin:auto;
+  padding:22px 18px 28px;
+}
+
+h1{
+  text-align:center;
+  color:var(--title);
+  margin:8px 0 4px;
+}
+
+.slogan{
+  text-align:center;
+  font-style:italic;
+  font-size:18px;            /* slightly larger */
+  font-weight:500;           /* subtle emphasis */
+  letter-spacing:0.3px;      /* cleaner spacing */
+  color:#355f47;             /* slightly richer tone */
+  text-shadow: 0 1px 0 rgba(0,0,0,0.05);
+  min-height:1.6em;
+  margin-bottom:20px;
+  transition:opacity 0.4s ease-in-out;
+}
+
+
+.controls{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px;
+}
+
+.controls-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.input,.select,.btn{
+  height:42px;
+  padding:0 12px;
+  font-size:14px;
+  border-radius:8px;
+  border:1px solid #7d7d7d;
+}
+
+.input{ flex:1 1 360px; }
+.select{ flex:0 1 220px; }
+
+.btn{
+  background:var(--btn);
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+}
+.btn:hover{ background:var(--btn-dark); }
+
+.meta{
+  text-align:center;
+  font-size:13.5px;
+  margin-top:8px;
+  margin-bottom:8px;
+  color:var(--muted);
+}
+
+.grid{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+}
+
+@media(max-width:900px){
+  .grid{ grid-template-columns:repeat(2,1fr); }
+}
+@media(max-width:600px){
+  .grid{ grid-template-columns:1fr; }
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
+}
+
+.name{
+  font-weight:600;
+  color:#3a3a3a;
+  margin-bottom:8px;
+}
+
+.bullets{
+  display:grid;
+  gap:6px;
+  margin-bottom:10px;
+}
+
+.bullet{
+  display:grid;
+  grid-template-columns:14px 1fr;
+  gap:6px;
+  font-size:13.5px;
+}
+
+.chev{ font-weight:700; }
+
+.pills{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-bottom:8px;
+}
+
+.pill{
+  font-size:12px;
+  padding:3px 9px;
+  border-radius:999px;
+  border:1px solid transparent;
+  background:none;
+  cursor:pointer;
+}
+
+.pill.blue{
+  background:var(--blue-bg);
+  border-color:var(--blue-bd);
+  color:var(--blue-tx);
+}
+
+.pill.green{
+  background:var(--green-bg);
+  border-color:var(--green-bd);
+  color:var(--green-tx);
+}
+
+.pill.active{
+  box-shadow:0 0 0 1px var(--pill-active);
+  font-weight:600;
+}
+
+.contact{
+  border-top:1px solid var(--border);
+  padding-top:10px;
+  margin-top:10px;
+  font-size:12.5px;
+  color:var(--muted);
+  display:grid;
+  gap:6px;
+}
+
+.contact-row{
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+}
+
+.icon{
+  width:16px;
+  text-align:center;
+}
+
+.contact a{
+  color:var(--blue-tx);
+  text-decoration:none;
+}
+.contact a:hover{
+  text-decoration:underline;
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<h1>CEH Sustainable Consumer Guide</h1>
+<div class="slogan" id="slogan"></div>
+
+<div class="controls">
+  <div class="controls-row">
+    <input id="search" class="input" placeholder="Search businesses, products, locations or practices…" />
+    <select id="locationFilter" class="select"></select>
+    <select id="practiceFilter" class="select"></select>
+    <button class="btn" onclick="resetFilters()">Reset filters</button>
+  </div>
+  <div class="meta" id="resultCount"></div>
+  <div class="meta" style="font-size:12.5px;">
+Search tips: use several words to narrow results, use <b>OR</b> between terms, or use "quotes" for exact phrases.
+   </div>
+</div>
+
+<div class="grid" id="cards"></div>
+
+</div>
+
 <script>
 
 /* -----------------------------------------------------
@@ -20,6 +288,37 @@ let lastUpdated = "";
 /* -----------------------------------------------------
 Utility Functions
 ----------------------------------------------------- */
+
+function matchSearch(record, query){
+
+  if(!query.trim()) return true;
+
+  const text = JSON.stringify(record).toLowerCase();
+  const q = query.toLowerCase();
+
+  // phrase search
+  const phrases = [...q.matchAll(/"([^"]+)"/g)].map(m => m[1]);
+
+  let remaining = q.replace(/"([^"]+)"/g, "").trim();
+
+  // phrase matching
+  for(const p of phrases){
+    if(!text.includes(p)) return false;
+  }
+
+  // OR logic
+  const orGroups = remaining.split(/\s+or\s+/);
+
+  if(orGroups.length > 1){
+    return orGroups.some(term => text.includes(term.trim()));
+  }
+
+  // AND logic
+  const words = remaining.split(/\s+/).filter(Boolean);
+
+  return words.every(w => text.includes(w));
+}
+  
 const splitClean = v =>
   v ? v.split(",").map(x=>x.trim()).filter(Boolean) : [];
 
@@ -32,39 +331,10 @@ const bulletise = text =>
       </div>`).join("") : "";
 
 /* -----------------------------------------------------
-Search Matching Logic
------------------------------------------------------ */
-function matchSearch(record, query){
-
-  if(!query.trim()) return true;
-
-  const text = JSON.stringify(record).toLowerCase();
-  const q = query.toLowerCase();
-
-  const phrases = [...q.matchAll(/"([^"]+)"/g)].map(m => m[1]);
-
-  let remaining = q.replace(/"([^"]+)"/g, "").trim();
-
-  for(const p of phrases){
-    if(!text.includes(p)) return false;
-  }
-
-  const orGroups = remaining.split(/\s+or\s+/);
-
-  if(orGroups.length > 1){
-    return orGroups.some(term => text.includes(term.trim()));
-  }
-
-  const words = remaining.split(/\s+/).filter(Boolean);
-
-  return words.every(w => text.includes(w));
-}
-
-/* -----------------------------------------------------
 Function: buildContact
+Purpose: Render contact section with robust URL detection
 ----------------------------------------------------- */
 function buildContact(r){
-
   const websiteRaw = r.Website?.trim();
   const phone = r.Phone?.trim();
   const email = r.Email?.trim();
@@ -102,7 +372,6 @@ Papa.parse(DATA_CSV,{
   header:true,
   complete:r=>{
     allData = r.data.filter(x => x.Name);
-
     allData.sort((a,b)=>new Date(b.Date)-new Date(a.Date));
 
     lastUpdated = new Date().toLocaleDateString("en-GB", {
@@ -125,19 +394,14 @@ Papa.parse(SLOGAN_CSV,{
   complete:r=>{
     const rows = r.data.slice(3,16).filter(x => x[0]);
     let i = 0;
-
     function showNext(){
       const [text,url,seconds] = rows[i];
-
       slogan.innerHTML = url
         ? `<a href="${url}" target="_blank">${text}</a>`
         : text;
-
       i = (i + 1) % rows.length;
-
       setTimeout(showNext,(Number(seconds) || 4) * 1000);
     }
-
     if(rows.length) showNext();
   }
 });
@@ -150,29 +414,24 @@ locationFilter.onchange =
 practiceFilter.onchange = applyFilters;
 
 function resetFilters(){
-
   search.value="";
   locationFilter.value="";
   practiceFilter.value="";
   activeCategory = null;
   activePractice = null;
-
   applyFilters();
 }
 
 function togglePill(type,value){
-
   if(type==="category"){
     activeCategory = activeCategory===value ? null : value;
   } else {
     activePractice = activePractice===value ? null : value;
   }
-
   applyFilters();
 }
 
 function buildFilters(){
-
   const loc = new Set();
   const prac = new Set();
 
@@ -191,63 +450,46 @@ function buildFilters(){
 }
 
 function applyFilters(){
-
   const q = search.value;
 
   filtered = allData.filter(r=>{
-
     if(locationFilter.value && !r.Location?.includes(locationFilter.value)) return false;
-
     if(practiceFilter.value && !r.Practices?.includes(practiceFilter.value)) return false;
-
     if(activeCategory && !splitClean(r.Category).includes(activeCategory)) return false;
-
     if(activePractice && !splitClean(r.Practices).includes(activePractice)) return false;
-
-    if(!matchSearch(r, q)) return false;
-
-    return true;
-
+    return matchSearch(r, q);
   });
 
   render();
 }
 
-/* -----------------------------------------------------
-Render
------------------------------------------------------ */
 function render(){
-
   cards.innerHTML = filtered.map(r=>`
     <div class="card">
-
       <div class="name">${r.Name}</div>
-
-      <div class="bullets">
-        ${bulletise(r["Product/Service"])}
-      </div>
-
+      <div class="bullets">${bulletise(r["Product/Service"])}</div>
       <div class="pills">
         ${splitClean(r.Category).map(c=>`
           <button class="pill blue ${activeCategory===c?"active":""}"
           onclick="togglePill('category','${c.replace(/'/g,"&#39;")}')">${c}</button>
         `).join("")}
       </div>
-
       <div class="pills">
         ${splitClean(r.Practices).map(p=>`
           <button class="pill green ${activePractice===p?"active":""}"
           onclick="togglePill('practice','${p.replace(/'/g,"&#39;")}')">${p}</button>
         `).join("")}
       </div>
-
       ${buildContact(r)}
-
     </div>
   `).join("");
 
   resultCount.textContent =
     `Showing ${filtered.length} of ${allData.length} results, last updated ${lastUpdated}`;
 }
-
 </script>
+</body>
+</html>
+
+
+
