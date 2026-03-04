@@ -302,77 +302,51 @@ const slogan=document.getElementById("slogan")
 
 
 /* ---------------- UTILITIES ---------------- */
-function highlight(text, query){
 
-  if(!query) return text;
+const splitClean=v=>v?v.split(",").map(x=>x.trim()).filter(Boolean):[]
 
-  // remove quotes and split words
-  let words = query
-    .replace(/"/g,"")
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(w => w && w !== "or");
+function highlight(text,q){
 
-  words.forEach(word => {
+if(!q)return text
 
-    const index = text.toLowerCase().indexOf(word);
+const words=q.replace(/\"/g,"").split(/\s+/).filter(Boolean)
 
-    if(index !== -1){
+words.forEach(w=>{
+const reg=new RegExp(`(${w})`,"gi")
+text=text.replace(reg,"<mark>$1</mark>")
+})
 
-      const before = text.substring(0,index);
-      const match  = text.substring(index,index + word.length);
-      const after  = text.substring(index + word.length);
-
-      text = before + "<mark>" + match + "</mark>" + after;
-
-    }
-
-  });
-
-  return text;
-
+return text
 }
 
 
 /* ---------------- SEARCH LOGIC ---------------- */
-function matchSearch(record, query){
 
-if(!query.trim()) return true
+function matchSearch(record,query){
 
-const text = JSON.stringify(record).toLowerCase()
-const q = query.toLowerCase()
+if(!query.trim())return true
 
-/* handle quoted phrases */
-const phrases = [...q.matchAll(/"([^"]+)"/g)].map(m => m[1])
-let remaining = q.replace(/"([^"]+)"/g," ").trim()
+const text=JSON.stringify(record).toLowerCase()
+const q=query.toLowerCase()
+
+const phrases=[...q.matchAll(/"([^"]+)"/g)].map(m=>m[1])
+let remaining=q.replace(/"([^"]+)"/g,"").trim()
 
 for(const p of phrases){
-if(!text.includes(p)) return false
+if(!text.includes(p))return false
 }
 
-/* OR logic */
-if(/\bor\b/.test(remaining)){
+const orGroups=remaining.split(/\s+or\s+/)
 
-const parts = remaining.split(/\s+or\s+/)
-
-return parts.some(part => {
-
-const words = part.trim().split(/\s+/).filter(Boolean)
-
-return words.every(w => text.includes(w))
-
-})
-
+if(orGroups.length>1){
+return orGroups.some(term=>text.includes(term.trim()))
 }
 
-/* default AND search */
+const words=remaining.split(/\s+/).filter(Boolean)
 
-const words = remaining.split(/\s+/).filter(Boolean)
-
-return words.every(w => text.includes(w))
+return words.every(w=>text.includes(w))
 
 }
-
 
 
 /* ---------------- CONTACT BLOCK ---------------- */
@@ -461,6 +435,8 @@ if(rows.length)showNext()
 search.addEventListener("input",()=>{
 
 applyFilters()
+
+cards.scrollIntoView({behavior:"smooth"})
 
 })
 
@@ -557,8 +533,3 @@ resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results
 
 </body>
 </html>
-
-
-
-
-
