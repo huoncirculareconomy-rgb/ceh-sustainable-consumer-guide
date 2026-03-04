@@ -306,15 +306,20 @@ function highlight(text,q){
 
 if(!q) return text
 
-// remove quotes and split words
+// remove quotes
 let words = q.replace(/\"/g,"").split(/\s+/)
 
-// remove logical operators like OR
+// remove logical operators
 words = words.filter(w => w.toLowerCase() !== "or")
 
 words.forEach(w=>{
 
-const reg = new RegExp(`\\b(${w})\\b`,"gi")
+if(!w) return
+
+// escape regex characters
+const escaped = w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
+
+const reg = new RegExp(`(${escaped})`,"gi")
 
 text = text.replace(reg,"<mark>$1</mark>")
 
@@ -323,7 +328,6 @@ text = text.replace(reg,"<mark>$1</mark>")
 return text
 
 }
-
 
 
 /* ---------------- SEARCH LOGIC ---------------- */
@@ -549,5 +553,6 @@ resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results
 
 </body>
 </html>
+
 
 
