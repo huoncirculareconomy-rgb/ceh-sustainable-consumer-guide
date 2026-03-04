@@ -302,22 +302,28 @@ const slogan=document.getElementById("slogan")
 
 
 /* ---------------- UTILITIES ---------------- */
-
-const splitClean=v=>v?v.split(",").map(x=>x.trim()).filter(Boolean):[]
-
 function highlight(text,q){
 
-if(!q)return text
+if(!q) return text
 
-const words=q.replace(/\"/g,"").split(/\s+/).filter(Boolean)
+// remove quotes and split words
+let words = q.replace(/\"/g,"").split(/\s+/)
+
+// remove logical operators like OR
+words = words.filter(w => w.toLowerCase() !== "or")
 
 words.forEach(w=>{
-const reg=new RegExp(`(${w})`,"gi")
-text=text.replace(reg,"<mark>$1</mark>")
+
+const reg = new RegExp(`\\b(${w})\\b`,"gi")
+
+text = text.replace(reg,"<mark>$1</mark>")
+
 })
 
 return text
+
 }
+
 
 
 /* ---------------- SEARCH LOGIC ---------------- */
@@ -543,4 +549,5 @@ resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results
 
 </body>
 </html>
+
 
