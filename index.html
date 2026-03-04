@@ -30,17 +30,15 @@ Features
 • Rotating slogans
 • Contact links
 • Result count + last updated
+• Restored indented description bullets
 
-Version: 1.6
-Last Modified: 04-Mar-2026
+Version: 1.6.1
+Last Modified: 05-Mar-2026
 
 Change Log
 v1.5  simplified interface, removed dropdown filters
 v1.6  UX improvements
-      clear search button
-      search term highlighting
-      auto-scroll on search
-      improved reset behaviour
+v1.6.1 restored indented description layout
 =========================================================
 */
 
@@ -180,9 +178,23 @@ font-weight:600;
 margin-bottom:8px;
 }
 
+/* restored indented bullet layout */
+
 .bullets{
+display:grid;
+gap:6px;
 margin-bottom:10px;
 font-size:13px;
+}
+
+.bullet{
+display:grid;
+grid-template-columns:12px 1fr;
+gap:6px;
+}
+
+.chev{
+font-weight:700;
 }
 
 .pills{
@@ -276,14 +288,13 @@ Search tips: use several words to narrow results, use <b>OR</b> between terms, o
 
 <script>
 
-/* ---------------- DATA SOURCES ---------------- */
+/* DATA SOURCES */
 
 const DATA_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=2076497318&single=true&output=csv"
 
 const SLOGAN_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=435440157&single=true&output=csv"
 
-
-/* ---------------- GLOBAL STATE ---------------- */
+/* GLOBAL STATE */
 
 let allData=[]
 let filtered=[]
@@ -291,7 +302,7 @@ let activeCategory=null
 let activePractice=null
 let lastUpdated=""
 
-/* ---------------- DOM ---------------- */
+/* DOM */
 
 const search=document.getElementById("search")
 const clearSearch=document.getElementById("clearSearch")
@@ -300,20 +311,15 @@ const cards=document.getElementById("cards")
 const resultCount=document.getElementById("resultCount")
 const slogan=document.getElementById("slogan")
 
-
-/* ---------------- UTILITIES ---------------- */
+/* UTILITIES */
 
 const splitClean=v=>v?v.split(",").map(x=>x.trim()).filter(Boolean):[]
 
 function highlight(text,q){
 
-if(!q) return text
+if(!q)return text
 
-const words = q
-  .replace(/\"/g,"")
-  .toLowerCase()
-  .split(/\s+/)
-  .filter(w => w && w !== "or")   // ignore logical OR
+const words=q.replace(/\"/g,"").split(/\s+/).filter(w=>w&&w.toLowerCase()!=="or")
 
 words.forEach(w=>{
 const reg=new RegExp(`(${w})`,"gi")
@@ -323,8 +329,25 @@ text=text.replace(reg,"<mark>$1</mark>")
 return text
 }
 
+/* restored bullet formatting */
 
-/* ---------------- SEARCH LOGIC ---------------- */
+function bulletise(text,q){
+
+if(!text)return""
+
+return text.split(".")
+.map(t=>t.trim())
+.filter(Boolean)
+.map(t=>`
+<div class="bullet">
+<div class="chev">&gt;</div>
+<div>${highlight(t+".",q)}</div>
+</div>
+`).join("")
+
+}
+
+/* SEARCH LOGIC */
 
 function matchSearch(record,query){
 
@@ -352,8 +375,7 @@ return words.every(w=>text.includes(w))
 
 }
 
-
-/* ---------------- CONTACT BLOCK ---------------- */
+/* CONTACT BLOCK */
 
 function buildContact(r){
 
@@ -387,8 +409,7 @@ html+="</div>"
 return html
 }
 
-
-/* ---------------- LOAD DATA ---------------- */
+/* LOAD DATA */
 
 Papa.parse(DATA_CSV,{
 download:true,
@@ -404,8 +425,7 @@ applyFilters()
 }
 })
 
-
-/* ---------------- SLOGANS ---------------- */
+/* SLOGANS */
 
 Papa.parse(SLOGAN_CSV,{
 download:true,
@@ -433,35 +453,25 @@ if(rows.length)showNext()
 }
 })
 
-
-/* ---------------- FILTERING ---------------- */
+/* FILTERING */
 
 search.addEventListener("input",()=>{
-
 applyFilters()
-
-
+cards.scrollIntoView({behavior:"smooth"})
 })
 
 clearSearch.addEventListener("click",()=>{
-
 search.value=""
 applyFilters()
-
 })
 
 resetBtn.addEventListener("click",()=>{
-
 search.value=""
 activeCategory=null
 activePractice=null
-
 applyFilters()
-
 window.scrollTo({top:0,behavior:"smooth"})
-
 })
-
 
 function togglePill(type,value){
 
@@ -476,7 +486,6 @@ applyFilters()
 }
 
 window.togglePill=togglePill
-
 
 function applyFilters(){
 
@@ -495,8 +504,7 @@ render()
 
 }
 
-
-/* ---------------- RENDER ---------------- */
+/* RENDER */
 
 function render(){
 
@@ -508,7 +516,7 @@ cards.innerHTML=filtered.map(r=>`
 
 <div class="name">${highlight(r.Name,q)}</div>
 
-<div class="bullets">${highlight(r["Product/Service"]||"",q)}</div>
+<div class="bullets">${bulletise(r["Product/Service"],q)}</div>
 
 <div class="pills">
 ${splitClean(r.Category).map(c=>`
@@ -536,5 +544,3 @@ resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results
 
 </body>
 </html>
-
-
