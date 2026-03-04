@@ -304,41 +304,32 @@ const slogan=document.getElementById("slogan")
 /* ---------------- UTILITIES ---------------- */
 function highlight(text, query){
 
-if(!query) return text
+  if(!query) return text;
 
-try{
+  // remove quotes and split words
+  let words = query
+    .replace(/"/g,"")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(w => w && w !== "or");
 
-let words = query
-  .replace(/"/g,"")
-  .toLowerCase()
-  .split(/\s+/)
-  .filter(w => w && w !== "or")
+  words.forEach(word => {
 
-words.forEach(word => {
+    const index = text.toLowerCase().indexOf(word);
 
-const lower = text.toLowerCase()
-let index = lower.indexOf(word)
+    if(index !== -1){
 
-if(index !== -1){
+      const before = text.substring(0,index);
+      const match  = text.substring(index,index + word.length);
+      const after  = text.substring(index + word.length);
 
-const before = text.substring(0,index)
-const match  = text.substring(index,index+word.length)
-const after  = text.substring(index+word.length)
+      text = before + "<mark>" + match + "</mark>" + after;
 
-text = before + "<mark>" + match + "</mark>" + after
+    }
 
-}
+  });
 
-})
-
-return text
-
-}
-catch(e){
-
-return text
-
-}
+  return text;
 
 }
 
@@ -566,6 +557,7 @@ resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results
 
 </body>
 </html>
+
 
 
 
