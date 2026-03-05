@@ -315,19 +315,10 @@ const slogan=document.getElementById("slogan")
 
 const splitClean=v=>v?v.split(",").map(x=>x.trim()).filter(Boolean):[]
 
-function highlight(text,q){
-
-if(!q)return text
-
-const words=q.replace(/\"/g,"").split(/\s+/).filter(w=>w&&w.toLowerCase()!=="or")
-
-words.forEach(w=>{
-const reg=new RegExp(`(${w})`,"gi")
-text=text.replace(reg,"<mark>$1</mark>")
-})
-
+    function highlight(text,q){
 return text
 }
+
 
 /* restored bullet formatting */
 
@@ -543,4 +534,5 @@ resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results
 
 </body>
 </html>
+
 
