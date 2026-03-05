@@ -454,11 +454,10 @@ if(rows.length)showNext()
 })
 
 /* FILTERING */
-
 search.addEventListener("input",()=>{
 applyFilters()
-cards.scrollIntoView({behavior:"smooth"})
 })
+
 
 clearSearch.addEventListener("click",()=>{
 search.value=""
@@ -544,3 +543,4 @@ resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results
 
 </body>
 </html>
+
