@@ -409,6 +409,8 @@ complete:r=>{
 
 allData=r.data.filter(x=>x.Name)
 
+allData.sort(()=>Math.random()-0.5)
+
 lastUpdated=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}).replace(/ /g,"-")
 
 applyFilters()
@@ -534,5 +536,6 @@ resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results
 
 </body>
 </html>
+
 
 
