@@ -374,7 +374,9 @@ if(!phone&&!email&&!address&&!website)return""
 let html=`<div class="contact">`
 
 if(website){
-  const urls=website.split(/[\n,]|\s+or\s+|\s+(?=https?:\/\/|\bwww\.)/i).map(u=>u.trim()).filter(Boolean)
+  const urls=website.split(/[\n,]|\s+or\s+|\s+(?=https?:\/\/|\bwww\.)/i)
+    .map(u=>u.trim())
+    .filter(u=>u&&/^(https?:\/\/|www\.)/i.test(u))
   urls.forEach(u=>{
     html+=`🌐 <a href="${u.startsWith("http")?u:"https://"+u}" target="_blank">${u}</a><br>`
   })
