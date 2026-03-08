@@ -374,7 +374,10 @@ if(!phone&&!email&&!address&&!website)return""
 let html=`<div class="contact">`
 
 if(website){
-html+=`🌐 <a href="${website.startsWith("http")?website:"https://"+website}" target="_blank">${website}</a><br>`
+  const urls=website.split(/[\n,]+/).map(u=>u.trim()).filter(Boolean)
+  urls.forEach(u=>{
+    html+=`🌐 <a href="${u.startsWith("http")?u:"https://"+u}" target="_blank">${u}</a><br>`
+  })
 }
 
 if(phone){
