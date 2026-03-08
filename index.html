@@ -32,13 +32,14 @@ Features
 • Result count + last updated
 • Restored indented description bullets
 
-Version: 1.6.1
-Last Modified: 05-Mar-2026
+Version: 1.6.2
+Last Modified: 08-Mar-2026
 
 Change Log
 v1.5  simplified interface, removed dropdown filters
 v1.6  UX improvements
 v1.6.1 restored indented description layout
+v1.6.2 masonry column layout (no blank-space gaps)
 =========================================================
 */
 
@@ -153,24 +154,17 @@ color:var(--muted);
 
 .grid{
 margin-top:16px;
-display:grid;
-grid-template-columns:repeat(3,1fr);
-gap:16px;
-}
-
-@media(max-width:900px){
-.grid{grid-template-columns:repeat(2,1fr)}
-}
-
-@media(max-width:600px){
-.grid{grid-template-columns:1fr}
+columns:3 300px;
+column-gap:16px;
 }
 
 .card{
+break-inside:avoid;
 background:var(--card);
 border:1px solid var(--border);
 border-radius:12px;
 padding:14px;
+margin-bottom:16px;
 }
 
 .name{
@@ -536,6 +530,3 @@ resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results
 
 </body>
 </html>
-
-
-
