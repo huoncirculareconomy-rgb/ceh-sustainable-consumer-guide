@@ -23,7 +23,7 @@ Features
     multiple words (AND)
     OR operator
     "quoted phrases"
-• Category & practice pill filters
+• Combined category & practice pill filters (single green list)
 • Clear search button
 • Highlight matching search words
 • Reset button clears filters and scrolls to top
@@ -32,7 +32,7 @@ Features
 • Result count + last updated
 • Restored indented description bullets
 
-Version: 1.6.2
+Version: 1.6.3
 Last Modified: 08-Mar-2026
 
 Change Log
@@ -40,6 +40,7 @@ v1.5  simplified interface, removed dropdown filters
 v1.6  UX improvements
 v1.6.1 restored indented description layout
 v1.6.2 masonry column layout (no blank-space gaps)
+v1.6.3 combined Category + Practices into single green pill list
 =========================================================
 */
 
@@ -51,10 +52,6 @@ v1.6.2 masonry column layout (no blank-space gaps)
   --text:#24323f;
   --muted:#777;
   --title:#2e8b57;
-
-  --blue-bg:#e6f0ff;
-  --blue-bd:#bcd2ff;
-  --blue-tx:#0b3ea9;
 
   --green-bg:#e7f6ea;
   --green-bd:#b9e2c2;
@@ -204,15 +201,6 @@ padding:3px 9px;
 border-radius:999px;
 border:1px solid transparent;
 cursor:pointer;
-}
-
-.pill.blue{
-background:var(--blue-bg);
-border-color:var(--blue-bd);
-color:var(--blue-tx);
-}
-
-.pill.green{
 background:var(--green-bg);
 border-color:var(--green-bd);
 color:var(--green-tx);
@@ -237,7 +225,7 @@ color:var(--muted);
 }
 
 .contact a{
-color:var(--blue-tx);
+color:#0b3ea9;
 text-decoration:none;
 }
 
@@ -292,8 +280,7 @@ const SLOGAN_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQ
 
 let allData=[]
 let filtered=[]
-let activeCategory=null
-let activePractice=null
+let activeFilter=null   // single combined filter (replaces activeCategory + activePractice)
 let lastUpdated=""
 
 /* DOM */
@@ -309,10 +296,23 @@ const slogan=document.getElementById("slogan")
 
 const splitClean=v=>v?v.split(",").map(x=>x.trim()).filter(Boolean):[]
 
-    function highlight(text,q){
-return text
+/* Title-case: capitalise first letter of each word */
+const toTitleCase=s=>s.replace(/\w\S*/g,w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase())
+
+/* Return deduplicated combined tags for a record, title-cased */
+function combinedTags(r){
+  const all=[...splitClean(r.Category),...splitClean(r.Practices)]
+  const seen=new Set()
+  return all.map(toTitleCase).filter(t=>{
+    if(seen.has(t))return false
+    seen.add(t)
+    return true
+  })
 }
 
+function highlight(text,q){
+  return text
+}
 
 /* restored bullet formatting */
 
@@ -441,10 +441,10 @@ if(rows.length)showNext()
 })
 
 /* FILTERING */
+
 search.addEventListener("input",()=>{
 applyFilters()
 })
-
 
 clearSearch.addEventListener("click",()=>{
 search.value=""
@@ -453,22 +453,15 @@ applyFilters()
 
 resetBtn.addEventListener("click",()=>{
 search.value=""
-activeCategory=null
-activePractice=null
+activeFilter=null
 applyFilters()
 window.scrollTo({top:0,behavior:"smooth"})
 })
 
-function togglePill(type,value){
-
-if(type==="category"){
-activeCategory=activeCategory===value?null:value
-}else{
-activePractice=activePractice===value?null:value
-}
-
-applyFilters()
-
+/* Single toggle — checks both Category and Practices columns */
+function togglePill(value){
+  activeFilter=activeFilter===value?null:value
+  applyFilters()
 }
 
 window.togglePill=togglePill
@@ -479,10 +472,12 @@ const q=search.value
 
 filtered=allData.filter(r=>{
 
-if(activeCategory&&!splitClean(r.Category).includes(activeCategory))return false
-if(activePractice&&!splitClean(r.Practices).includes(activePractice))return false
+  if(activeFilter){
+    const tags=combinedTags(r)
+    if(!tags.includes(activeFilter))return false
+  }
 
-return matchSearch(r,q)
+  return matchSearch(r,q)
 
 })
 
@@ -496,8 +491,11 @@ function render(){
 
 const q=search.value
 
-cards.innerHTML=filtered.map(r=>`
+cards.innerHTML=filtered.map(r=>{
 
+  const tags=combinedTags(r)
+
+  return `
 <div class="card">
 
 <div class="name">${highlight(r.Name,q)}</div>
@@ -505,22 +503,15 @@ cards.innerHTML=filtered.map(r=>`
 <div class="bullets">${bulletise(r["Product/Service"],q)}</div>
 
 <div class="pills">
-${splitClean(r.Category).map(c=>`
-<button class="pill blue ${activeCategory===c?"active":""}" onclick="togglePill('category','${c}')">${c}</button>
-`).join("")}
-</div>
-
-<div class="pills">
-${splitClean(r.Practices).map(p=>`
-<button class="pill green ${activePractice===p?"active":""}" onclick="togglePill('practice','${p}')">${p}</button>
+${tags.map(t=>`
+<button class="pill ${activeFilter===t?"active":""}" onclick="togglePill('${t.replace(/'/g,"\\'")}')"> ${t}</button>
 `).join("")}
 </div>
 
 ${buildContact(r)}
 
 </div>
-
-`).join("")
+`}).join("")
 
 resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results, last updated ${lastUpdated}`
 
