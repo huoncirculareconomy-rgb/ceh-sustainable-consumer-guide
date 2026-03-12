@@ -10,44 +10,10 @@
 
 <style>
 
-/*
-=========================================================
-Sustainable Consumer Guide
-
-Purpose
-Render filterable business cards from Google Sheet CSV
-
-Features
-• Single search box across all fields
-• Search supports:
-    multiple words (AND)
-    OR operator
-    "quoted phrases"
-• Combined category & practice pill filters (single green list)
-• Clear search button
-• Highlight matching search words
-• Reset button clears filters and scrolls to top
-• Rotating slogans
-• Contact links
-• Result count + last updated
-• Restored indented description bullets
-
-Version: 1.6.3
-Last Modified: 08-Mar-2026
-
-Change Log
-v1.5  simplified interface, removed dropdown filters
-v1.6  UX improvements
-v1.6.1 restored indented description layout
-v1.6.2 masonry column layout (no blank-space gaps)
-v1.6.3 combined Category + Practices into single green pill list
-=========================================================
-*/
-
 :root{
   --bg:#f6f3ef;
   --panel:#fbf8f4;
-  --card:#f8f6f3;
+  --card:#fffdf9;
   --border:#d9d9d9;
   --text:#24323f;
   --muted:#777;
@@ -162,14 +128,13 @@ border:1px solid var(--border);
 border-radius:12px;
 padding:14px;
 margin-bottom:16px;
+box-shadow:0 1px 4px rgba(0,0,0,0.08);
 }
 
 .name{
 font-weight:600;
 margin-bottom:8px;
 }
-
-/* restored indented bullet layout */
 
 .bullets{
 display:grid;
@@ -270,20 +235,14 @@ Search tips: use several words to narrow results, use <b>OR</b> between terms, o
 
 <script>
 
-/* DATA SOURCES */
-
 const DATA_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=2076497318&single=true&output=csv"
 
 const SLOGAN_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vSuhA8ku2ftsdQaepAZucZWIHmVuwaLO2xq8_d8y5QIOBfCwRBDsWH9A5crAbsAcK3TFM1fcWMTVJjs/pub?gid=435440157&single=true&output=csv"
 
-/* GLOBAL STATE */
-
 let allData=[]
 let filtered=[]
-let activeFilter=null   // single combined filter (replaces activeCategory + activePractice)
+let activeFilter=null
 let lastUpdated=""
-
-/* DOM */
 
 const search=document.getElementById("search")
 const clearSearch=document.getElementById("clearSearch")
@@ -292,14 +251,10 @@ const cards=document.getElementById("cards")
 const resultCount=document.getElementById("resultCount")
 const slogan=document.getElementById("slogan")
 
-/* UTILITIES */
-
 const splitClean=v=>v?v.split(",").map(x=>x.trim()).filter(Boolean):[]
 
-/* Title-case: capitalise first letter of each word */
 const toTitleCase=s=>s.replace(/\w\S*/g,w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase())
 
-/* Return deduplicated combined tags for a record, title-cased */
 function combinedTags(r){
   const all=[...splitClean(r.Category),...splitClean(r.Practices)]
   const seen=new Set()
@@ -314,12 +269,8 @@ function highlight(text,q){
   return text
 }
 
-/* restored bullet formatting */
-
 function bulletise(text,q){
-
 if(!text)return""
-
 return text.split(".")
 .map(t=>t.trim())
 .filter(Boolean)
@@ -329,50 +280,32 @@ return text.split(".")
 <div>${highlight(t+".",q)}</div>
 </div>
 `).join("")
-
 }
 
-/* SEARCH LOGIC */
-
 function matchSearch(record,query){
-
 if(!query.trim())return true
-
 const text=JSON.stringify(record).toLowerCase()
 const q=query.toLowerCase()
-
 const phrases=[...q.matchAll(/"([^"]+)"/g)].map(m=>m[1])
 let remaining=q.replace(/"([^"]+)"/g,"").trim()
-
 for(const p of phrases){
 if(!text.includes(p))return false
 }
-
 const orGroups=remaining.split(/\s+or\s+/)
-
 if(orGroups.length>1){
 return orGroups.some(term=>text.includes(term.trim()))
 }
-
 const words=remaining.split(/\s+/).filter(Boolean)
-
 return words.every(w=>text.includes(w))
-
 }
 
-/* CONTACT BLOCK */
-
 function buildContact(r){
-
 const phone=r.Phone?.trim()
 const email=r.Email?.trim()
 const address=r.Address?.trim()
 const website=r.Website?.trim()
-
 if(!phone&&!email&&!address&&!website)return""
-
 let html=`<div class="contact">`
-
 if(website){
   const urls=website.split(/[\n,]|\s+or\s+|\s+(?=https?:\/\/|\bwww\.)/i)
     .map(u=>u.trim())
@@ -381,71 +314,45 @@ if(website){
     html+=`🌐 <a href="${u.startsWith("http")?u:"https://"+u}" target="_blank">${u}</a><br>`
   })
 }
-
 if(phone){
 html+=`☎ <a href="tel:${phone.replace(/\s+/g,"")}">${phone}</a><br>`
 }
-
 if(email){
 html+=`✉ <a href="mailto:${email}">${email}</a><br>`
 }
-
 if(address){
 html+=`📍 <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}" target="_blank">${address}</a>`
 }
-
 html+="</div>"
-
 return html
 }
-
-/* LOAD DATA */
 
 Papa.parse(DATA_CSV,{
 download:true,
 header:true,
 complete:r=>{
-
 allData=r.data.filter(x=>x.Name)
-
 allData.sort(()=>Math.random()-0.5)
-
 lastUpdated=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}).replace(/ /g,"-")
-
 applyFilters()
-
 }
 })
-
-/* SLOGANS */
 
 Papa.parse(SLOGAN_CSV,{
 download:true,
 header:false,
 complete:r=>{
-
 const rows=r.data.slice(3,16).filter(x=>x[0])
-
 let i=0
-
 function showNext(){
-
 const[text,url,seconds]=rows[i]
-
 slogan.innerHTML=url?`<a href="${url}" target="_blank">${text}</a>`:text
-
 i=(i+1)%rows.length
-
 setTimeout(showNext,(Number(seconds)||4)*1000)
-
 }
-
 if(rows.length)showNext()
-
 }
 })
-
-/* FILTERING */
 
 search.addEventListener("input",()=>{
 applyFilters()
@@ -463,7 +370,6 @@ applyFilters()
 window.scrollTo({top:0,behavior:"smooth"})
 })
 
-/* Single toggle — checks both Category and Practices columns */
 function togglePill(value){
   activeFilter=activeFilter===value?null:value
   applyFilters()
@@ -472,54 +378,34 @@ function togglePill(value){
 window.togglePill=togglePill
 
 function applyFilters(){
-
 const q=search.value
-
 filtered=allData.filter(r=>{
-
   if(activeFilter){
     const tags=combinedTags(r)
     if(!tags.includes(activeFilter))return false
   }
-
   return matchSearch(r,q)
-
 })
-
 render()
-
 }
 
-/* RENDER */
-
 function render(){
-
 const q=search.value
-
 cards.innerHTML=filtered.map(r=>{
-
   const tags=combinedTags(r)
-
   return `
 <div class="card">
-
 <div class="name">${highlight(r.Name,q)}</div>
-
 <div class="bullets">${bulletise(r["Product/Service"],q)}</div>
-
 <div class="pills">
 ${tags.map(t=>`
 <button class="pill ${activeFilter===t?"active":""}" onclick="togglePill('${t.replace(/'/g,"\\'")}')"> ${t}</button>
 `).join("")}
 </div>
-
 ${buildContact(r)}
-
 </div>
 `}).join("")
-
 resultCount.textContent=`Showing ${filtered.length} of ${allData.length} results, last updated ${lastUpdated}`
-
 }
 
 </script>
